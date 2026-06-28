@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.view.View
 import androidx.annotation.DrawableRes
+import com.simple.phonetics.ui.precompute.BitmapLoader
 import com.simple.phonetics.ui.precompute.DrawSpec
 import com.simple.phonetics.ui.precompute.MeasureContext
 
