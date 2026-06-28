@@ -1,13 +1,16 @@
 package com.simple.phonetics.ui.precompute
 
+import com.simple.phonetics.ui.precompute.node.Constraints
+import com.simple.phonetics.ui.precompute.node.LayoutNode
+
 /**
  * Pure measurement engine. No View, no Context, no main-thread APIs.
  * Safe to call from Dispatchers.Default.
  *
  *   val spec = LayoutEngine.measure(node, Constraints(screenWidth))
  *
- * Engine không biết Text/Image/Linear là gì — mỗi [LayoutNode] tự đo qua
- * [LayoutNode.measure]. Thêm node mới = tạo class kế thừa [LayoutNode] +
+ * Engine không biết Text/Image/Linear là gì — mỗi [com.simple.phonetics.ui.precompute.node.LayoutNode] tự đo qua
+ * [com.simple.phonetics.ui.precompute.node.LayoutNode.measure]. Thêm node mới = tạo class kế thừa [com.simple.phonetics.ui.precompute.node.LayoutNode] +
  * [DrawSpec], không cần đụng file này.
  */
 object LayoutEngine {

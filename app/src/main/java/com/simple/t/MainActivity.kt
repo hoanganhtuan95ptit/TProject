@@ -9,6 +9,18 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.simple.phonetics.ui.precompute.node.ConstraintChild
+import com.simple.phonetics.ui.precompute.node.ConstraintDim
+import com.simple.phonetics.ui.precompute.node.ConstraintNode
+import com.simple.phonetics.ui.precompute.node.Constraints
+import com.simple.phonetics.ui.precompute.node.CrossAlign
+import com.simple.phonetics.ui.precompute.node.EdgeInsets
+import com.simple.phonetics.ui.precompute.node.ImageNode
+import com.simple.phonetics.ui.precompute.node.ImageSource
+import com.simple.phonetics.ui.precompute.node.LayoutNode
+import com.simple.phonetics.ui.precompute.node.LinearNode
+import com.simple.phonetics.ui.precompute.node.Orientation
+import com.simple.phonetics.ui.precompute.node.TextNode
 import com.simple.t.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -193,9 +205,9 @@ class MainActivity : AppCompatActivity() {
                 orientation = Orientation.VERTICAL,
                 gap = dp(4),
                 children = listOf(
-                    TextNode(word,    sp(16f), Color.BLACK,         typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
-                    TextNode(ipa,     sp(14f), 0xFF6200EE.toInt(),  maxLines = 1),
-                    TextNode(meaning, sp(12f), Color.GRAY,          maxLines = 2),
+                    TextNode(word, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                    TextNode(ipa, sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                    TextNode(meaning, sp(12f), Color.GRAY, maxLines = 2),
                 )
             )
         )
@@ -234,18 +246,18 @@ class MainActivity : AppCompatActivity() {
                 id = "icon",
                 node = ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
                 startToStartOf = ConstraintNode.PARENT,
-                topToTopOf     = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
             ),
 
             // ② Badge "EN" — anchor end-top vào PARENT
             ConstraintChild(
                 id = "badge",
                 node = TextNode(
-                    text       = "EN",
+                    text = "EN",
                     textSizePx = sp(10f),
-                    color      = 0xFF6200EE.toInt(),
-                    typeface   = Typeface.DEFAULT_BOLD,
-                    padding    = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
+                    color = 0xFF6200EE.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
                 ),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
@@ -253,32 +265,32 @@ class MainActivity : AppCompatActivity() {
 
             // ③ Title — nằm giữa icon (start) và badge (end), fill hết chiều rộng
             ConstraintChild(
-                id   = "title",
+                id = "title",
                 node = TextNode(word, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
-                startToEndOf = "icon",  marginStart = dp(12),
-                endToStartOf = "badge", marginEnd   = dp(8),
-                topToTopOf   = ConstraintNode.PARENT,
-                width        = ConstraintDim.MatchConstraint,
+                startToEndOf = "icon", marginStart = dp(12),
+                endToStartOf = "badge", marginEnd = dp(8),
+                topToTopOf = ConstraintNode.PARENT,
+                width = ConstraintDim.MatchConstraint,
             ),
 
             // ④ IPA — ngay bên dưới title, căn trái/phải theo title
             ConstraintChild(
-                id   = "ipa",
+                id = "ipa",
                 node = TextNode(ipa, sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
                 startToStartOf = "title",
-                endToEndOf     = "title",
-                topToBottomOf  = "title", marginTop = dp(4),
-                width          = ConstraintDim.MatchConstraint,
+                endToEndOf = "title",
+                topToBottomOf = "title", marginTop = dp(4),
+                width = ConstraintDim.MatchConstraint,
             ),
 
             // ⑤ Meaning — ngay bên dưới ipa, căn trái/phải theo ipa
             ConstraintChild(
-                id   = "meaning",
+                id = "meaning",
                 node = TextNode(meaning, sp(12f), Color.GRAY, maxLines = 2),
                 startToStartOf = "ipa",
-                endToEndOf     = "ipa",
-                topToBottomOf  = "ipa", marginTop = dp(4),
-                width          = ConstraintDim.MatchConstraint,
+                endToEndOf = "ipa",
+                topToBottomOf = "ipa", marginTop = dp(4),
+                width = ConstraintDim.MatchConstraint,
             ),
         )
     )
@@ -316,83 +328,83 @@ class MainActivity : AppCompatActivity() {
                 id = "avatar",
                 node = ImageNode(source = avatarSource, width = avatarSizePx, height = avatarSizePx),
                 startToStartOf = ConstraintNode.PARENT,
-                topToTopOf     = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
             ),
 
             // ② Name — start leo vào END của avatar, top leo vào TOP của PARENT
             ConstraintChild(
-                id   = "name",
+                id = "name",
                 node = TextNode(name, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
-                startToEndOf = "avatar",  marginStart = dp(12),
-                endToEndOf   = ConstraintNode.PARENT,
-                topToTopOf   = ConstraintNode.PARENT,
-                width        = ConstraintDim.MatchConstraint,
+                startToEndOf = "avatar", marginStart = dp(12),
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+                width = ConstraintDim.MatchConstraint,
             ),
 
             // ③ Tag badge — start leo vào END của avatar, top leo vào BOTTOM của name
             //   → phụ thuộc cả avatar lẫn name: resolve ở pass 2
             ConstraintChild(
-                id   = "tag",
+                id = "tag",
                 node = TextNode(
-                    text       = tag,
+                    text = tag,
                     textSizePx = sp(11f),
-                    color      = 0xFFFFFFFF.toInt(),
-                    typeface   = Typeface.DEFAULT_BOLD,
-                    padding    = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
+                    color = 0xFFFFFFFF.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
                 ),
-                startToEndOf  = "avatar",  marginStart = dp(12),
-                topToBottomOf = "name",    marginTop   = dp(4),
+                startToEndOf = "avatar", marginStart = dp(12),
+                topToBottomOf = "name", marginTop = dp(4),
             ),
 
             // ④ Role — start leo vào END của tag (chaining ngang)
             //   → phụ thuộc tag: resolve ở pass 3
             ConstraintChild(
-                id   = "role",
+                id = "role",
                 node = TextNode(role, sp(11f), Color.DKGRAY, maxLines = 1),
-                startToEndOf  = "tag",             marginStart = dp(6),
-                endToEndOf    = ConstraintNode.PARENT,
-                topToTopOf    = "tag",
-                width         = ConstraintDim.MatchConstraint,
+                startToEndOf = "tag", marginStart = dp(6),
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = "tag",
+                width = ConstraintDim.MatchConstraint,
             ),
 
             // ⑤ Bio (dòng sub-text) — top leo vào BOTTOM của role (chaining dọc)
             //   → phụ thuộc role: resolve ở pass 4
             ConstraintChild(
-                id   = "bio",
+                id = "bio",
                 node = TextNode("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)", sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
-                startToEndOf  = "avatar",  marginStart = dp(12),
-                endToEndOf    = ConstraintNode.PARENT,
-                topToBottomOf = "role",    marginTop   = dp(4),
-                width         = ConstraintDim.MatchConstraint,
+                startToEndOf = "avatar", marginStart = dp(12),
+                endToEndOf = ConstraintNode.PARENT,
+                topToBottomOf = "role", marginTop = dp(4),
+                width = ConstraintDim.MatchConstraint,
             ),
 
             // ⑥ Button Like — anchor start-bottom vào PARENT
             ConstraintChild(
-                id   = "btn_like",
+                id = "btn_like",
                 node = TextNode(
-                    text       = "♥  Like",
+                    text = "♥  Like",
                     textSizePx = sp(12f),
-                    color      = 0xFFFFFFFF.toInt(),
-                    typeface   = Typeface.DEFAULT_BOLD,
-                    padding    = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
+                    color = 0xFFFFFFFF.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
                 ),
                 startToStartOf = ConstraintNode.PARENT,
-                topToBottomOf  = "bio", marginTop = dp(10),
+                topToBottomOf = "bio", marginTop = dp(10),
             ),
 
             // ⑦ Button Share — start leo vào END của btn_like (chaining ngang)
             //   → phụ thuộc btn_like: resolve sau btn_like
             ConstraintChild(
-                id   = "btn_share",
+                id = "btn_share",
                 node = TextNode(
-                    text       = "↗  Share",
+                    text = "↗  Share",
                     textSizePx = sp(12f),
-                    color      = 0xFF6200EE.toInt(),
-                    typeface   = Typeface.DEFAULT_BOLD,
-                    padding    = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
+                    color = 0xFF6200EE.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
                 ),
                 startToEndOf = "btn_like", marginStart = dp(8),
-                topToTopOf   = "btn_like",
+                topToTopOf = "btn_like",
             ),
         )
     )

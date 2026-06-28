@@ -1,4 +1,4 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.phonetics.ui.precompute.node
 
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -7,6 +7,8 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
+import com.simple.phonetics.ui.precompute.DrawSpec
+import com.simple.phonetics.ui.precompute.MeasureContext
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextNode — mô tả một đoạn text cần đo/vẽ.

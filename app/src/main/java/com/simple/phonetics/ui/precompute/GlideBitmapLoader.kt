@@ -6,6 +6,8 @@ import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.simple.phonetics.ui.precompute.node.ImageSource
+import com.simple.phonetics.ui.precompute.node.ImageSpec
 import java.io.File
 import java.util.WeakHashMap
 

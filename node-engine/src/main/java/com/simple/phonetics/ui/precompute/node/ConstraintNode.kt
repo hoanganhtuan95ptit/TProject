@@ -1,4 +1,7 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.phonetics.ui.precompute.node
+
+import com.simple.phonetics.ui.precompute.DrawSpec
+import com.simple.phonetics.ui.precompute.MeasureContext
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConstraintDim  — chế độ kích thước của child.
@@ -84,7 +87,7 @@ data class ConstraintChild(
  * - Dependency cycle → child bị đặt tại (0, 0) làm fallback.
  *
  * ## Kết quả
- * Trả về [GroupSpec] — cùng kiểu với [LinearNode] để dùng chung [PrecomputedView].
+ * Trả về [GroupSpec] — cùng kiểu với [LinearNode] để dùng chung [com.simple.phonetics.ui.precompute.PrecomputedView].
  *
  * ## Ví dụ
  * ```kotlin

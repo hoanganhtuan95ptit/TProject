@@ -1,7 +1,9 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.phonetics.ui.precompute.node
 
 import android.graphics.Canvas
 import android.view.View
+import com.simple.phonetics.ui.precompute.DrawSpec
+import com.simple.phonetics.ui.precompute.MeasureContext
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LinearNode — mô tả một container xếp children theo chiều ngang / dọc.
@@ -17,7 +19,7 @@ import android.view.View
  *
  * Đo 2 lượt:
  *   1. Pass 1 — đo tất cả children để biết cross size lớn nhất.
- *   2. Pass 2 — gán vị trí với cross-align qua [DrawSpec.withPosition].
+ *   2. Pass 2 — gán vị trí với cross-align qua [com.simple.phonetics.ui.precompute.DrawSpec.withPosition].
  */
 data class LinearNode(
     val orientation: Orientation,
