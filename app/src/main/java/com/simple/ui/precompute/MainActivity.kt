@@ -131,9 +131,22 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, profileSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 4 — ConstraintNode: WrapContent mặc định
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "④ ConstraintNode  —  WrapContent (vừa khít nội dung)")
+
+            val wrapContentSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildWrapContentTagsCard(), Constraints(cardWidth)),
+                    LayoutEngine.measure(buildWrapContentCenterCard(), Constraints(cardWidth))
+                )
+            }
+            addCards(container, wrapContentSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2 + profiles.size} cards — LinearNode + ConstraintNode, measured on bg thread"
+                text = "${items.size * 2 + profiles.size + 2} cards — LinearNode + ConstraintNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -415,4 +428,55 @@ class MainActivity : AppCompatActivity() {
 
     private fun sp(value: Float): Float =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, resources.displayMetrics)
+
+    // ── WrapContent Demo builders ─────────────────────────────────────────────
+
+    /**
+     * **ConstraintNode** WrapContent: Các thẻ xếp hàng (chaining ngang) vừa khít nội dung.
+     */
+    private fun buildWrapContentTagsCard(): LayoutNode = ConstraintNode(
+        padding = EdgeInsets.all(dp(16)),
+        children = listOf(
+            ConstraintChild(
+                id = "tag_1",
+                node = TextNode("Kotlin", sp(14f), 0xFFE91E63.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                startToStartOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+            ),
+            ConstraintChild(
+                id = "tag_2",
+                node = TextNode("Android", sp(14f), 0xFF4CAF50.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                startToEndOf = "tag_1", marginStart = dp(8),
+                topToTopOf = "tag_1",
+            ),
+            ConstraintChild(
+                id = "tag_3",
+                node = TextNode("WrapContent", sp(14f), 0xFF2196F3.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                startToEndOf = "tag_2", marginStart = dp(8),
+                topToTopOf = "tag_2",
+            )
+        )
+    )
+
+    /**
+     * **ConstraintNode** WrapContent: Nút nằm chính giữa màn hình.
+     */
+    private fun buildWrapContentCenterCard(): LayoutNode = ConstraintNode(
+        padding = EdgeInsets.all(dp(16)),
+        children = listOf(
+            ConstraintChild(
+                id = "btn_confirm",
+                node = TextNode(
+                    text = "NÚT CĂN GIỮA MÀN HÌNH", 
+                    textSizePx = sp(14f), 
+                    color = 0xFF6200EE.toInt(), 
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(24), v = dp(12))
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT
+            )
+        )
+    )
 }

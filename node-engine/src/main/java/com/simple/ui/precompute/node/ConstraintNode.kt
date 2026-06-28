@@ -182,9 +182,10 @@ data class ConstraintNode(
             specs[child.id]?.withPosition(p.left + b[0], p.top + b[1])
         }
 
-        // Chiều rộng = toàn bộ constraint width; chiều cao = wrap children
+        // Chiều rộng = max right của các child + padding; chiều cao = max bottom + padding
+        val totalW = (children.mapNotNull { bounds[it.id]?.get(2) }.maxOrNull() ?: 0) + p.horizontal
         val totalH = (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
-        return GroupSpec(x, y, c.maxWidth, totalH.coerceAtLeast(p.vertical), placed)
+        return GroupSpec(x, y, totalW.coerceAtLeast(p.horizontal), totalH.coerceAtLeast(p.vertical), placed)
     }
 
     // ── Dependency check ────────────────────────────────────────────────────
