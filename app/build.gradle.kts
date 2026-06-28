@@ -34,6 +34,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":node-engine"))
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)

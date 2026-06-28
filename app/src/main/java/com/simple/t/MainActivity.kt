@@ -82,9 +82,46 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, constraintSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 3 — ConstraintNode: views leo nhau (view-to-view chaining)
+            //
+            //  Profile card layout:
+            //  ┌─────────────────────────────────────────────────────┐
+            //  │ [avatar]      [name]  (bold, lớn)                   │
+            //  │               [tag]──►[role]   ← tag.end→role.start │
+            //  │               [bio]             ← topToBottomOf(role)│
+            //  │ [btn_like]──►[btn_share]        ← start2endOf chain  │
+            //  └─────────────────────────────────────────────────────┘
+            //
+            //  Dependency graph:
+            //   PARENT → avatar, name, btn_like
+            //   avatar → tag (startToEndOf)
+            //   name   → tag (topToBottomOf)
+            //   tag    → role (startToEndOf)
+            //   role   → bio (topToBottomOf)
+            //   btn_like → btn_share (startToEndOf)
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "③ ConstraintNode  —  view con leo nhau (view-to-view)")
+
+            val profiles = listOf(
+                Triple("Alice Nguyen",   "#Android",  "Senior Engineer  ·  Google"),
+                Triple("Bob Tran",       "#Kotlin",   "Staff Engineer  ·  JetBrains"),
+                Triple("Carol Le",       "#Compose",  "UI Engineer  ·  Meta"),
+            )
+
+            val profileSpecs = withContext(Dispatchers.Default) {
+                profiles.map { (name, tag, role) ->
+                    LayoutEngine.measure(
+                        buildProfileConstraintCard(name, tag, role, iconSource, dp48),
+                        Constraints(cardWidth)
+                    )
+                }
+            }
+            addCards(container, profileSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2} cards — LinearNode + ConstraintNode, measured on bg thread"
+                text = "${items.size * 2 + profiles.size} cards — LinearNode + ConstraintNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -242,6 +279,120 @@ class MainActivity : AppCompatActivity() {
                 endToEndOf     = "ipa",
                 topToBottomOf  = "ipa", marginTop = dp(4),
                 width          = ConstraintDim.MatchConstraint,
+            ),
+        )
+    )
+
+    /**
+     * **ConstraintNode** profile card — minh họa view con leo nhau theo cả 2 chiều.
+     *
+     * ```
+     * ┌─────────────────────────────────────────────────────┐
+     * │ [avatar]    [name]          (bold, sp16)            │
+     * │             [tag]──►[role]  tag.end → role.start    │
+     * │             [bio]           topToBottomOf(role)      │
+     * │ [btn_like]──►[btn_share]   btn_share.start = btn_like.end │
+     * └─────────────────────────────────────────────────────┘
+     * ```
+     *
+     * Thứ tự resolve:
+     *   Pass 1: avatar (PARENT), name (PARENT), btn_like (PARENT)
+     *   Pass 2: tag    (avatar + name), btn_share (btn_like)
+     *   Pass 3: role   (tag)
+     *   Pass 4: bio    (role)
+     */
+    private fun buildProfileConstraintCard(
+        name: String,
+        tag: String,
+        role: String,
+        avatarSource: ImageSource,
+        avatarSizePx: Int,
+    ): LayoutNode = ConstraintNode(
+        padding = EdgeInsets(left = dp(12), top = dp(12), right = dp(12), bottom = dp(12)),
+        children = listOf(
+
+            // ① Avatar — góc trên-trái của PARENT
+            ConstraintChild(
+                id = "avatar",
+                node = ImageNode(source = avatarSource, width = avatarSizePx, height = avatarSizePx),
+                startToStartOf = ConstraintNode.PARENT,
+                topToTopOf     = ConstraintNode.PARENT,
+            ),
+
+            // ② Name — start leo vào END của avatar, top leo vào TOP của PARENT
+            ConstraintChild(
+                id   = "name",
+                node = TextNode(name, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
+                startToEndOf = "avatar",  marginStart = dp(12),
+                endToEndOf   = ConstraintNode.PARENT,
+                topToTopOf   = ConstraintNode.PARENT,
+                width        = ConstraintDim.MatchConstraint,
+            ),
+
+            // ③ Tag badge — start leo vào END của avatar, top leo vào BOTTOM của name
+            //   → phụ thuộc cả avatar lẫn name: resolve ở pass 2
+            ConstraintChild(
+                id   = "tag",
+                node = TextNode(
+                    text       = tag,
+                    textSizePx = sp(11f),
+                    color      = 0xFFFFFFFF.toInt(),
+                    typeface   = Typeface.DEFAULT_BOLD,
+                    padding    = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
+                ),
+                startToEndOf  = "avatar",  marginStart = dp(12),
+                topToBottomOf = "name",    marginTop   = dp(4),
+            ),
+
+            // ④ Role — start leo vào END của tag (chaining ngang)
+            //   → phụ thuộc tag: resolve ở pass 3
+            ConstraintChild(
+                id   = "role",
+                node = TextNode(role, sp(11f), Color.DKGRAY, maxLines = 1),
+                startToEndOf  = "tag",             marginStart = dp(6),
+                endToEndOf    = ConstraintNode.PARENT,
+                topToTopOf    = "tag",
+                width         = ConstraintDim.MatchConstraint,
+            ),
+
+            // ⑤ Bio (dòng sub-text) — top leo vào BOTTOM của role (chaining dọc)
+            //   → phụ thuộc role: resolve ở pass 4
+            ConstraintChild(
+                id   = "bio",
+                node = TextNode("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)", sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
+                startToEndOf  = "avatar",  marginStart = dp(12),
+                endToEndOf    = ConstraintNode.PARENT,
+                topToBottomOf = "role",    marginTop   = dp(4),
+                width         = ConstraintDim.MatchConstraint,
+            ),
+
+            // ⑥ Button Like — anchor start-bottom vào PARENT
+            ConstraintChild(
+                id   = "btn_like",
+                node = TextNode(
+                    text       = "♥  Like",
+                    textSizePx = sp(12f),
+                    color      = 0xFFFFFFFF.toInt(),
+                    typeface   = Typeface.DEFAULT_BOLD,
+                    padding    = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                topToBottomOf  = "bio", marginTop = dp(10),
+            ),
+
+            // ⑦ Button Share — start leo vào END của btn_like (chaining ngang)
+            //   → phụ thuộc btn_like: resolve sau btn_like
+            ConstraintChild(
+                id   = "btn_share",
+                node = TextNode(
+                    text       = "↗  Share",
+                    textSizePx = sp(12f),
+                    color      = 0xFF6200EE.toInt(),
+                    typeface   = Typeface.DEFAULT_BOLD,
+                    padding    = EdgeInsets.symmetric(h = dp(14), v = dp(7)),
+                ),
+                startToEndOf = "btn_like", marginStart = dp(8),
+                topToTopOf   = "btn_like",
             ),
         )
     )

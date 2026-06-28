@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "TProject"
 include(":app")
+include(":node-engine")
  

@@ -10,38 +10,14 @@ import java.io.File
 import java.util.WeakHashMap
 
 /**
- * Loader bất đồng bộ cho [ImageSpec]. Trách nhiệm:
- *  - Bỏ qua spec đã có bitmap (BitmapSource).
- *  - Với các source khác: load → set [ImageSpec.bitmap] → gọi [onReady]
- *    trên main thread để view invalidate.
- *  - Cancel khi spec bị detach hoặc thay thế.
- *
- * Implementation chuẩn: [GlideBitmapLoader].
- */
-interface BitmapLoader {
-    fun load(spec: ImageSpec, onReady: () -> Unit)
-    fun cancel(spec: ImageSpec)
-
-    companion object {
-        @Volatile
-        private var instance: BitmapLoader? = null
-
-        /** Đăng ký loader mặc định (gọi 1 lần ở Application). */
-        fun install(loader: BitmapLoader) {
-            instance = loader
-        }
-
-        /** Trả về loader đã đăng ký, hoặc null nếu chưa install. */
-        fun get(): BitmapLoader? = instance
-    }
-}
-
-/**
  * BitmapLoader dùng Glide. An toàn để dùng làm singleton ở Application scope.
  *
  * Lưu ý: dùng [Glide.with]`(applicationContext)` để tránh phụ thuộc lifecycle
  * của Activity/Fragment — chu kỳ load được quản lý bởi PrecomputedView qua
  * attach/detach + cancel.
+ *
+ * Cách dùng (gọi 1 lần ở Application.onCreate):
+ *   BitmapLoader.install(GlideBitmapLoader(this))
  */
 class GlideBitmapLoader(context: Context) : BitmapLoader {
 

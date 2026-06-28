@@ -98,9 +98,6 @@ data class ImageNode(
  * - Nếu source là [ImageSource.BitmapSource]: [bitmap] có ngay từ đầu.
  * - Ngược lại: [bitmap] = null cho tới khi [BitmapLoader] gọi setter;
  *   trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
- *
- * [withPosition] giữ lại bitmap hiện có để không phải load lại sau khi
- * layout assign vị trí.
  */
 class ImageSpec(
     override val left: Int,
@@ -108,13 +105,11 @@ class ImageSpec(
     override val width: Int,
     override val height: Int,
     val source: ImageSource,
-    val dst: Rect,
-    initialBitmap: Bitmap? = null
+    val dst: Rect
 ) : DrawSpec() {
 
     @Volatile
-    var bitmap: Bitmap? = initialBitmap
-        ?: (source as? ImageSource.BitmapSource)?.bitmap
+    var bitmap: Bitmap? = (source as? ImageSource.BitmapSource)?.bitmap
 
     override fun onDrawContent(canvas: Canvas) {
         val b = bitmap ?: return
@@ -134,7 +129,7 @@ class ImageSpec(
     }
 
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        ImageSpec(newLeft, newTop, width, height, source, dst, bitmap)
+        ImageSpec(newLeft, newTop, width, height, source, dst)
 
     companion object {
         private val SHARED_PAINT =
