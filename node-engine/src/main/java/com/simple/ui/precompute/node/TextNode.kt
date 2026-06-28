@@ -9,6 +9,7 @@ import android.text.TextPaint
 import android.text.TextUtils
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import kotlin.math.ceil
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextNode — mô tả một đoạn text cần đo/vẽ.
@@ -29,7 +30,9 @@ data class TextNode(
     val typeface: Typeface? = null,
     val lineSpacingMul: Float = 1f,
     val lineSpacingAdd: Float = 0f,
-    override val padding: EdgeInsets = EdgeInsets.ZERO
+    override val padding: EdgeInsets = EdgeInsets.ZERO,
+    override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
+    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 ) : LayoutNode() {
 
     override fun measure(
@@ -39,7 +42,8 @@ data class TextNode(
         y: Int
     ): TextSpec {
         val p = padding
-        val innerWidth = (c.maxWidth - p.horizontal).coerceAtLeast(0)
+        val measureWidth = layoutWidth.maxForMeasure(c.maxWidth)
+        val innerWidth = (measureWidth - p.horizontal).coerceAtLeast(0)
 
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = textSizePx
@@ -58,11 +62,13 @@ data class TextNode(
 
         val usedWidth = (0 until layout.lineCount)
             .maxOfOrNull { layout.getLineWidth(it) }
-            ?.toInt()
+            ?.let { ceil(it.toDouble()).toInt() }
             ?: 0
 
-        val w = usedWidth.coerceAtMost(innerWidth) + p.horizontal
-        val h = layout.height + p.vertical
+        val contentW = usedWidth.coerceAtMost(innerWidth) + p.horizontal
+        val contentH = layout.height + p.vertical
+        val w = layoutWidth.resolve(contentW, c.maxWidth)
+        val h = layoutHeight.resolve(contentH, c.maxHeight)
         return TextSpec(x, y, w, h, p.left, p.top, layout)
     }
 }

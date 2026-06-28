@@ -41,6 +41,49 @@ enum class Orientation { HORIZONTAL, VERTICAL }
 enum class CrossAlign { START, CENTER, END }
 
 /**
+ * XML-like dimension mode shared by every [LayoutNode].
+ *
+ * - [WrapContent] uses the measured content size, capped by parent constraints.
+ * - [MatchParent] fills the bounded parent constraint. If the axis is unbounded,
+ *   it falls back to wrap-content semantics.
+ * - [Fixed] requests a concrete pixel size, still capped by parent constraints.
+ */
+sealed class LayoutDimension {
+    object WrapContent : LayoutDimension()
+    object MatchParent : LayoutDimension()
+    data class Fixed(val px: Int) : LayoutDimension() {
+        init {
+            require(px >= 0) { "Fixed dimension must be >= 0, was $px" }
+        }
+    }
+
+    companion object {
+        fun fixed(px: Int) = Fixed(px)
+    }
+}
+
+internal fun LayoutDimension.maxForMeasure(parentMax: Int): Int =
+    when (this) {
+        is LayoutDimension.Fixed -> px.capTo(parentMax)
+        LayoutDimension.MatchParent -> parentMax
+        LayoutDimension.WrapContent -> parentMax
+    }.coerceAtLeast(0)
+
+internal fun LayoutDimension.resolve(contentSize: Int, parentMax: Int): Int {
+    val resolved = when (this) {
+        is LayoutDimension.Fixed -> px
+        LayoutDimension.MatchParent -> {
+            if (parentMax == Int.MAX_VALUE) contentSize else parentMax
+        }
+        LayoutDimension.WrapContent -> contentSize
+    }
+    return resolved.capTo(parentMax).coerceAtLeast(0)
+}
+
+private fun Int.capTo(parentMax: Int): Int =
+    if (parentMax == Int.MAX_VALUE) this else coerceAtMost(parentMax)
+
+/**
  * Immutable description of a sub-tree to be laid out.
  * Everything here must be safe to read from a background thread:
  * no references to View, Context, Resources, etc.
@@ -54,6 +97,10 @@ enum class CrossAlign { START, CENTER, END }
 abstract class LayoutNode {
 
     abstract val padding: EdgeInsets
+
+    open val layoutWidth: LayoutDimension = LayoutDimension.WrapContent
+
+    open val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 
     /**
      * Tự đo và trả về [com.simple.ui.precompute.DrawSpec] tại vị trí ([x], [y]).

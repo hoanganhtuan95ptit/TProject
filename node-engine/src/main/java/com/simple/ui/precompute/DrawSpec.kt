@@ -34,6 +34,7 @@ abstract class DrawSpec {
     fun draw(canvas: Canvas) {
         val saved = canvas.save()
         canvas.translate(left.toFloat(), top.toFloat())
+        canvas.clipRect(0, 0, width, height)
         onDrawContent(canvas)
         canvas.restoreToCount(saved)
     }
@@ -47,4 +48,33 @@ abstract class DrawSpec {
     open fun onAttachedToWindow(view: View) {}
 
     open fun onDetachedFromWindow(view: View) {}
+}
+
+/**
+ * A measured box that delegates drawing/lifecycle to a child spec.
+ * Used when parent layout rules force a size different from the child's
+ * natural measured size.
+ */
+internal data class SizedSpec(
+    override val left: Int,
+    override val top: Int,
+    override val width: Int,
+    override val height: Int,
+    val child: DrawSpec
+) : DrawSpec() {
+
+    override fun onDrawContent(canvas: Canvas) {
+        child.draw(canvas)
+    }
+
+    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
+        copy(left = newLeft, top = newTop)
+
+    override fun onAttachedToWindow(view: View) {
+        child.onAttachedToWindow(view)
+    }
+
+    override fun onDetachedFromWindow(view: View) {
+        child.onDetachedFromWindow(view)
+    }
 }

@@ -11,6 +11,7 @@ import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
 import com.simple.ui.precompute.node.ImageNode
 import com.simple.ui.precompute.node.ImageSource
+import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
 import com.simple.ui.precompute.node.LinearNode
 import com.simple.ui.precompute.node.Orientation
@@ -59,8 +60,8 @@ object Example {
             children = listOf(
                 ImageNode(
                     source = ImageSource.ResSource(iconResId),
-                    width = dp48,
-                    height = dp48
+                    layoutWidth = LayoutDimension.Fixed(dp48),
+                    layoutHeight = LayoutDimension.Fixed(dp48)
                 ),
                 LinearNode(
                     orientation = Orientation.VERTICAL,

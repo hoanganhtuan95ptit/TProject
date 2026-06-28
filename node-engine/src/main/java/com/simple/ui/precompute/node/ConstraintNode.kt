@@ -2,27 +2,13 @@ package com.simple.ui.precompute.node
 
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.SizedSpec
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ConstraintDim  — chế độ kích thước của child.
 // ConstraintChild — mô tả 1 child với các constraint liên kết.
 // ConstraintNode  — container layout theo constraint, tương tự ConstraintLayout.
 // Kết quả trả về  — GroupSpec (cùng DrawSpec type với LinearNode).
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Kích thước của một child trong [ConstraintNode].
- *
- * - [Fixed]           — cố định (pixel).
- * - [WrapContent]     — đo theo nội dung (mặc định).
- * - [MatchConstraint] — lấp đầy khoảng giữa 2 constraint cùng chiều (= 0dp XML).
- *                       Yêu cầu cả 2 constraint cùng trục phải được set.
- */
-sealed class ConstraintDim {
-    data class Fixed(val px: Int) : ConstraintDim()
-    object WrapContent : ConstraintDim()
-    object MatchConstraint : ConstraintDim()
-}
 
 /**
  * Một child trong [ConstraintNode].
@@ -64,8 +50,8 @@ data class ConstraintChild(
     val marginTop: Int = 0,
     val marginBottom: Int = 0,
     // ── Dimension mode ────────────────────────────────────────────────────
-    val width: ConstraintDim = ConstraintDim.WrapContent,
-    val height: ConstraintDim = ConstraintDim.WrapContent,
+    val width: LayoutDimension = LayoutDimension.WrapContent,
+    val height: LayoutDimension = LayoutDimension.WrapContent,
     // ── Bias (chỉ active khi cả 2 constraint cùng trục được set) ─────────
     val horizontalBias: Float = 0.5f,
     val verticalBias: Float = 0.5f,
@@ -82,7 +68,7 @@ data class ConstraintChild(
  * ## Hạn chế hiện tại
  * - Không hỗ trợ chain (horizontal/vertical chain).
  * - Không hỗ trợ Guideline / Barrier.
- * - [ConstraintDim.MatchConstraint] yêu cầu cả 2 constraint cùng trục được set.
+ * - [LayoutDimension.MatchParent] fill khoảng khả dụng theo anchor hiện có.
  * - Chiều cao container = wrap-to-content (max bottom của children + padding).
  * - Dependency cycle → child bị đặt tại (0, 0) làm fallback.
  *
@@ -98,7 +84,7 @@ data class ConstraintChild(
  *             node = TextNode("Hello", sp18, Color.BLACK),
  *             startToStartOf = PARENT, endToEndOf = PARENT,
  *             topToTopOf = PARENT, marginTop = dp16,
- *             width = ConstraintDim.MatchConstraint,
+ *             width = LayoutDimension.MatchParent,
  *         ),
  *         ConstraintChild(
  *             id = "subtitle",
@@ -112,7 +98,9 @@ data class ConstraintChild(
  */
 data class ConstraintNode(
     val children: List<ConstraintChild>,
-    override val padding: EdgeInsets = EdgeInsets.ZERO
+    override val padding: EdgeInsets = EdgeInsets.ZERO,
+    override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
+    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 ) : LayoutNode() {
 
     companion object {
@@ -122,8 +110,10 @@ data class ConstraintNode(
 
     override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec {
         val p = padding
-        val innerW = (c.maxWidth - p.horizontal).coerceAtLeast(0)
-        val innerH = (c.maxHeight - p.vertical).coerceAtLeast(0)
+        val measureMaxW = layoutWidth.maxForMeasure(c.maxWidth)
+        val measureMaxH = layoutHeight.maxForMeasure(c.maxHeight)
+        val innerW = (measureMaxW - p.horizontal).coerceAtLeast(0)
+        val innerH = (measureMaxH - p.vertical).coerceAtLeast(0)
 
         // bounds[id] = [left, top, right, bottom] trong toạ độ inner
         val bounds = HashMap<String, IntArray>(children.size + 1)
@@ -142,24 +132,24 @@ data class ConstraintNode(
                 val avH = availH(child, bounds, innerH)
 
                 // 2. Đo child node (background thread safe)
-                val spec = ctx.measure(
+                val measuredSpec = ctx.measure(
                     child.node,
                     Constraints(avW.coerceAtLeast(0), avH.coerceAtLeast(0)),
                     0, 0
                 )
-                specs[child.id] = spec
 
                 // 3. Kích thước thực của child sau khi biết spec
                 val cw = when (val d = child.width) {
-                    is ConstraintDim.Fixed -> d.px
-                    ConstraintDim.MatchConstraint -> avW
-                    ConstraintDim.WrapContent -> spec.width
+                    is LayoutDimension.Fixed -> d.px
+                    LayoutDimension.MatchParent -> avW
+                    LayoutDimension.WrapContent -> measuredSpec.width
                 }
                 val ch = when (val d = child.height) {
-                    is ConstraintDim.Fixed -> d.px
-                    ConstraintDim.MatchConstraint -> avH
-                    ConstraintDim.WrapContent -> spec.height
+                    is LayoutDimension.Fixed -> d.px
+                    LayoutDimension.MatchParent -> avH
+                    LayoutDimension.WrapContent -> measuredSpec.height
                 }
+                specs[child.id] = measuredSpec.withSize(cw, ch)
 
                 // 4. Giải vị trí dựa trên constraint + bias
                 val l = resolveLeft(child, bounds, cw, innerW)
@@ -171,9 +161,19 @@ data class ConstraintNode(
 
         // Fallback: child còn lại (dependency cycle hoặc thiếu constraint)
         for (child in remaining) {
-            val spec = ctx.measure(child.node, Constraints(innerW, innerH), 0, 0)
-            specs[child.id] = spec
-            bounds[child.id] = intArrayOf(0, 0, spec.width, spec.height)
+            val measuredSpec = ctx.measure(child.node, Constraints(innerW, innerH), 0, 0)
+            val cw = when (val d = child.width) {
+                is LayoutDimension.Fixed -> d.px
+                LayoutDimension.MatchParent -> innerW
+                LayoutDimension.WrapContent -> measuredSpec.width
+            }
+            val ch = when (val d = child.height) {
+                is LayoutDimension.Fixed -> d.px
+                LayoutDimension.MatchParent -> innerH
+                LayoutDimension.WrapContent -> measuredSpec.height
+            }
+            specs[child.id] = measuredSpec.withSize(cw, ch)
+            bounds[child.id] = intArrayOf(0, 0, cw, ch)
         }
 
         // Gán vị trí thực (thêm padding container) và trả GroupSpec
@@ -183,9 +183,11 @@ data class ConstraintNode(
         }
 
         // Chiều rộng = max right của các child + padding; chiều cao = max bottom + padding
-        val totalW = (children.mapNotNull { bounds[it.id]?.get(2) }.maxOrNull() ?: 0) + p.horizontal
-        val totalH = (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
-        return GroupSpec(x, y, totalW.coerceAtLeast(p.horizontal), totalH.coerceAtLeast(p.vertical), placed)
+        val naturalW = (children.mapNotNull { bounds[it.id]?.get(2) }.maxOrNull() ?: 0) + p.horizontal
+        val naturalH = (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
+        val totalW = layoutWidth.resolve(naturalW.coerceAtLeast(p.horizontal), c.maxWidth)
+        val totalH = layoutHeight.resolve(naturalH.coerceAtLeast(p.vertical), c.maxHeight)
+        return GroupSpec(x, y, totalW, totalH, placed)
     }
 
     // ── Dependency check ────────────────────────────────────────────────────
@@ -205,24 +207,24 @@ data class ConstraintNode(
 
     /**
      * Width khả dụng truyền vào [MeasureContext.measure]:
-     * - [ConstraintDim.MatchConstraint] → khoảng giữa 2 anchor ngang.
-     * - [ConstraintDim.Fixed]           → giá trị cố định.
-     * - [ConstraintDim.WrapContent]     → innerW (child tự co lại sau khi đo).
+     * - [LayoutDimension.MatchParent] → khoảng giữa các anchor ngang.
+     * - [LayoutDimension.Fixed]       → giá trị cố định.
+     * - [LayoutDimension.WrapContent] → innerW (child tự co lại sau khi đo).
      */
     private fun availW(child: ConstraintChild, bounds: Map<String, IntArray>, innerW: Int): Int =
-        when (child.width) {
-            is ConstraintDim.Fixed -> child.width.px
-            ConstraintDim.MatchConstraint ->
+        when (val d = child.width) {
+            is LayoutDimension.Fixed -> d.px
+            LayoutDimension.MatchParent ->
                 (endAnchor(child, bounds, innerW) - startAnchor(child, bounds)).coerceAtLeast(0)
-            ConstraintDim.WrapContent -> innerW
+            LayoutDimension.WrapContent -> innerW
         }
 
     private fun availH(child: ConstraintChild, bounds: Map<String, IntArray>, innerH: Int): Int =
-        when (child.height) {
-            is ConstraintDim.Fixed -> child.height.px
-            ConstraintDim.MatchConstraint ->
+        when (val d = child.height) {
+            is LayoutDimension.Fixed -> d.px
+            LayoutDimension.MatchParent ->
                 (bottomAnchor(child, bounds, innerH) - topAnchor(child, bounds)).coerceAtLeast(0)
-            ConstraintDim.WrapContent -> innerH
+            LayoutDimension.WrapContent -> innerH
         }
 
     // ── Anchor helpers (tọa độ inner) ──────────────────────────────────────
@@ -298,4 +300,11 @@ data class ConstraintNode(
             else      -> 0
         }.coerceAtLeast(0)
     }
+
+    private fun DrawSpec.withSize(width: Int, height: Int): DrawSpec =
+        if (this.width == width && this.height == height) {
+            this
+        } else {
+            SizedSpec(0, 0, width.coerceAtLeast(0), height.coerceAtLeast(0), withPosition(0, 0))
+        }
 }

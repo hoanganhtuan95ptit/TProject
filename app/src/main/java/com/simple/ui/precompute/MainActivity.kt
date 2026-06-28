@@ -9,19 +9,19 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.simple.t.R
 import com.simple.ui.precompute.node.ConstraintChild
-import com.simple.ui.precompute.node.ConstraintDim
 import com.simple.ui.precompute.node.ConstraintNode
 import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
 import com.simple.ui.precompute.node.ImageNode
 import com.simple.ui.precompute.node.ImageSource
+import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
 import com.simple.ui.precompute.node.LinearNode
 import com.simple.ui.precompute.node.Orientation
 import com.simple.ui.precompute.node.TextNode
-import com.simple.t.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
             //   Layout:
             //     icon  ← anchored start-top to PARENT
             //     badge ← anchored end-top  to PARENT  ("EN" label)
-            //     title ← startToEndOf(icon), endToStartOf(badge), MatchConstraint
+            //     title ← startToEndOf(icon), endToStartOf(badge), MatchParent
             //     ipa   ← topToBottomOf(title), same horizontal span
             //     meaning ← topToBottomOf(ipa),  same horizontal span
             //
@@ -213,7 +213,11 @@ class MainActivity : AppCompatActivity() {
         gap = dp(12),
         padding = EdgeInsets.all(dp(12)),
         children = listOf(
-            ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
+            ImageNode(
+                source = iconSource,
+                layoutWidth = LayoutDimension.Fixed(iconSizePx),
+                layoutHeight = LayoutDimension.Fixed(iconSizePx)
+            ),
             LinearNode(
                 orientation = Orientation.VERTICAL,
                 gap = dp(4),
@@ -232,7 +236,7 @@ class MainActivity : AppCompatActivity() {
      *
      * ```
      * ┌──────────────────────────────────┐
-     * │ [icon]  title (MatchConstraint) [EN]│
+     * │ [icon]  title (MatchParent) [EN]│
      * │         /ipa/                   │
      * │         meaning                 │
      * └──────────────────────────────────┘
@@ -257,7 +261,11 @@ class MainActivity : AppCompatActivity() {
             // ① Icon — anchor start-top vào PARENT
             ConstraintChild(
                 id = "icon",
-                node = ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
+                node = ImageNode(
+                    source = iconSource,
+                    layoutWidth = LayoutDimension.Fixed(iconSizePx),
+                    layoutHeight = LayoutDimension.Fixed(iconSizePx)
+                ),
                 startToStartOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
             ),
@@ -283,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 startToEndOf = "icon", marginStart = dp(12),
                 endToStartOf = "badge", marginEnd = dp(8),
                 topToTopOf = ConstraintNode.PARENT,
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
 
             // ④ IPA — ngay bên dưới title, căn trái/phải theo title
@@ -293,7 +301,7 @@ class MainActivity : AppCompatActivity() {
                 startToStartOf = "title",
                 endToEndOf = "title",
                 topToBottomOf = "title", marginTop = dp(4),
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
 
             // ⑤ Meaning — ngay bên dưới ipa, căn trái/phải theo ipa
@@ -303,7 +311,7 @@ class MainActivity : AppCompatActivity() {
                 startToStartOf = "ipa",
                 endToEndOf = "ipa",
                 topToBottomOf = "ipa", marginTop = dp(4),
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
         )
     )
@@ -339,7 +347,11 @@ class MainActivity : AppCompatActivity() {
             // ① Avatar — góc trên-trái của PARENT
             ConstraintChild(
                 id = "avatar",
-                node = ImageNode(source = avatarSource, width = avatarSizePx, height = avatarSizePx),
+                node = ImageNode(
+                    source = avatarSource,
+                    layoutWidth = LayoutDimension.Fixed(avatarSizePx),
+                    layoutHeight = LayoutDimension.Fixed(avatarSizePx)
+                ),
                 startToStartOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
             ),
@@ -351,7 +363,7 @@ class MainActivity : AppCompatActivity() {
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
 
             // ③ Tag badge — start leo vào END của avatar, top leo vào BOTTOM của name
@@ -377,7 +389,7 @@ class MainActivity : AppCompatActivity() {
                 startToEndOf = "tag", marginStart = dp(6),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = "tag",
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
 
             // ⑤ Bio (dòng sub-text) — top leo vào BOTTOM của role (chaining dọc)
@@ -388,7 +400,7 @@ class MainActivity : AppCompatActivity() {
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToBottomOf = "role", marginTop = dp(4),
-                width = ConstraintDim.MatchConstraint,
+                width = LayoutDimension.MatchParent,
             ),
 
             // ⑥ Button Like — anchor start-bottom vào PARENT
@@ -462,6 +474,7 @@ class MainActivity : AppCompatActivity() {
      * **ConstraintNode** WrapContent: Nút nằm chính giữa màn hình.
      */
     private fun buildWrapContentCenterCard(): LayoutNode = ConstraintNode(
+        layoutWidth = LayoutDimension.MatchParent,
         padding = EdgeInsets.all(dp(16)),
         children = listOf(
             ConstraintChild(

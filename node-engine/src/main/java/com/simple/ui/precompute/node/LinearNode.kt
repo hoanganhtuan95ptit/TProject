@@ -26,7 +26,9 @@ data class LinearNode(
     val children: List<LayoutNode>,
     val gap: Int = 0,
     val crossAlign: CrossAlign = CrossAlign.START,
-    override val padding: EdgeInsets = EdgeInsets.ZERO
+    override val padding: EdgeInsets = EdgeInsets.ZERO,
+    override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
+    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 ) : LayoutNode() {
 
     override fun measure(
@@ -36,8 +38,10 @@ data class LinearNode(
         y: Int
     ): GroupSpec {
         val p = padding
-        val innerMaxW = (c.maxWidth - p.horizontal).coerceAtLeast(0)
-        val innerMaxH = (c.maxHeight - p.vertical).coerceAtLeast(0)
+        val measureMaxW = layoutWidth.maxForMeasure(c.maxWidth)
+        val measureMaxH = layoutHeight.maxForMeasure(c.maxHeight)
+        val innerMaxW = (measureMaxW - p.horizontal).coerceAtLeast(0)
+        val innerMaxH = (measureMaxH - p.vertical).coerceAtLeast(0)
 
         // 1st pass: đo mọi child, chưa cần biết vị trí.
         val measured = ArrayList<DrawSpec>(children.size)
@@ -65,14 +69,30 @@ data class LinearNode(
         // không cần biết concrete type.
         val placed = ArrayList<DrawSpec>(measured.size)
         var cursor = 0
+        val naturalMain = if (measured.isEmpty()) 0 else mainUsed
+        val naturalW = when (orientation) {
+            Orientation.HORIZONTAL -> naturalMain + p.horizontal
+            Orientation.VERTICAL -> crossMax + p.horizontal
+        }
+        val naturalH = when (orientation) {
+            Orientation.HORIZONTAL -> crossMax + p.vertical
+            Orientation.VERTICAL -> naturalMain + p.vertical
+        }
+        val w = layoutWidth.resolve(naturalW, c.maxWidth)
+        val h = layoutHeight.resolve(naturalH, c.maxHeight)
+        val crossSlot = when (orientation) {
+            Orientation.HORIZONTAL -> (h - p.vertical).coerceAtLeast(0)
+            Orientation.VERTICAL -> (w - p.horizontal).coerceAtLeast(0)
+        }
+
         for (s in measured) {
             val (cx, cy) = when (orientation) {
                 Orientation.HORIZONTAL -> {
-                    val offCross = crossOffset(crossMax, s.height, crossAlign)
+                    val offCross = crossOffset(crossSlot, s.height, crossAlign)
                     Pair(p.left + cursor, p.top + offCross)
                 }
                 Orientation.VERTICAL -> {
-                    val offCross = crossOffset(crossMax, s.width, crossAlign)
+                    val offCross = crossOffset(crossSlot, s.width, crossAlign)
                     Pair(p.left + offCross, p.top + cursor)
                 }
             }
@@ -83,10 +103,6 @@ data class LinearNode(
         }
         if (placed.isNotEmpty()) cursor -= gap
 
-        val (w, h) = when (orientation) {
-            Orientation.HORIZONTAL -> Pair(cursor + p.horizontal, crossMax + p.vertical)
-            Orientation.VERTICAL -> Pair(crossMax + p.horizontal, cursor + p.vertical)
-        }
         return GroupSpec(x, y, w, h, placed)
     }
 
@@ -94,8 +110,8 @@ data class LinearNode(
         fun crossOffset(parent: Int, child: Int, align: CrossAlign): Int =
             when (align) {
                 CrossAlign.START -> 0
-                CrossAlign.CENTER -> (parent - child) / 2
-                CrossAlign.END -> parent - child
+                CrossAlign.CENTER -> (parent - child).coerceAtLeast(0) / 2
+                CrossAlign.END -> (parent - child).coerceAtLeast(0)
             }
     }
 }

@@ -1,10 +1,12 @@
 package com.simple.ui.precompute.node
 
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.view.View
 import androidx.annotation.DrawableRes
@@ -31,7 +33,7 @@ import com.simple.ui.precompute.MeasureContext
  */
 sealed class ImageSource {
     data class BitmapSource(val bitmap: Bitmap) : ImageSource()
-    data class ResSource(@DrawableRes val resId: Int) : ImageSource()
+    data class ResSource(@param:DrawableRes val resId: Int) : ImageSource()
     /** Đường dẫn file trên thiết bị (absolute path). */
     data class PathSource(val path: String) : ImageSource()
     data class UrlSource(val url: String) : ImageSource()
@@ -41,28 +43,18 @@ sealed class ImageSource {
 /**
  * Mô tả một ảnh cần layout.
  *
- * - Với [ImageSource.BitmapSource], [width]/[height] có thể bỏ trống —
- *   sẽ tự lấy theo bitmap.
- * - Với các source async (Res/Path/Url/Drawable), **bắt buộc** truyền
- *   [width] và [height] vì engine phải đo trước khi bitmap về.
- *   Sẽ throw [IllegalArgumentException] khi build nếu thiếu.
+ * - Với [ImageSource.BitmapSource] hoặc [ImageSource.DrawableSource] có intrinsic
+ *   size, [LayoutDimension.WrapContent] sẽ lấy theo kích thước ảnh.
+ * - Với các source async (Res/Path/Url/Drawable), cần có kích thước trước khi
+ *   bitmap về: đặt [layoutWidth]/[layoutHeight] thành [LayoutDimension.Fixed]
+ *   hoặc bounded [LayoutDimension.MatchParent].
  */
 data class ImageNode(
     val source: ImageSource,
-    /** null chỉ được phép khi source là BitmapSource. */
-    val width: Int? = null,
-    /** null chỉ được phép khi source là BitmapSource. */
-    val height: Int? = null,
+    override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
+    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
     override val padding: EdgeInsets = EdgeInsets.ZERO
 ) : LayoutNode() {
-
-    init {
-        if (source !is ImageSource.BitmapSource) {
-            require(width != null && height != null) {
-                "width/height bắt buộc cho ImageSource async: $source"
-            }
-        }
-    }
 
     override fun measure(
         ctx: MeasureContext,
@@ -71,26 +63,57 @@ data class ImageNode(
         y: Int
     ): ImageSpec {
         val p = padding
-        // Với BitmapSource: lấy width/height theo bitmap nếu node không truyền.
-        // Với source khác: init {} đã đảm bảo width/height != null.
-        val bitmapSize = (source as? ImageSource.BitmapSource)?.bitmap
-        val rawW = width ?: bitmapSize?.width ?: 0
-        val rawH = height ?: bitmapSize?.height ?: 0
-        val w = rawW + p.horizontal
-        val h = rawH + p.vertical
-        val dst = Rect(p.left, p.top, p.left + rawW, p.top + rawH)
-        return ImageSpec(x, y, w, h, source, dst)
+        val bitmap = (source as? ImageSource.BitmapSource)?.bitmap
+        val drawable = (source as? ImageSource.DrawableSource)?.drawable
+
+        val rawW = bitmap?.width
+            ?: drawable?.intrinsicWidth?.takeIf { it > 0 }
+            ?: layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
+            ?: 0
+        val rawH = bitmap?.height
+            ?: drawable?.intrinsicHeight?.takeIf { it > 0 }
+            ?: layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
+            ?: 0
+
+        if (source !is ImageSource.BitmapSource && (rawW <= 0 || rawH <= 0)) {
+            throw IllegalArgumentException(
+                "ImageSource async requires fixed/bounded layoutWidth/layoutHeight: $source"
+            )
+        }
+
+        val w = layoutWidth.resolve(rawW + p.horizontal, c.maxWidth)
+        val h = layoutHeight.resolve(rawH + p.vertical, c.maxHeight)
+        val dstW = (w - p.horizontal).coerceAtLeast(0)
+        val dstH = (h - p.vertical).coerceAtLeast(0)
+
+        val dst = Rect(p.left, p.top, p.left + dstW, p.top + dstH)
+        return ImageSpec(x, y, w, h, source, dst).apply {
+            this.drawable = when (source) {
+                is ImageSource.BitmapSource -> BitmapDrawable(Resources.getSystem(), source.bitmap)
+                is ImageSource.DrawableSource -> source.drawable
+                else -> null
+            }
+        }
     }
 
     companion object {
         /** Tiện ích: tạo ImageNode từ Bitmap có sẵn. */
         fun fromBitmap(
             bitmap: Bitmap,
-            width: Int? = null,
-            height: Int? = null,
+            layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
+            layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
             padding: EdgeInsets = EdgeInsets.ZERO
-        ) = ImageNode(ImageSource.BitmapSource(bitmap), width, height, padding)
+        ) = ImageNode(ImageSource.BitmapSource(bitmap), layoutWidth, layoutHeight, padding)
     }
+
+    private fun LayoutDimension.contentSizeFrom(parentMax: Int, padding: Int): Int? =
+        when (this) {
+            is LayoutDimension.Fixed -> (maxForMeasure(parentMax) - padding).coerceAtLeast(0)
+            LayoutDimension.MatchParent -> {
+                if (parentMax == Int.MAX_VALUE) null else (parentMax - padding).coerceAtLeast(0)
+            }
+            LayoutDimension.WrapContent -> null
+        }
 }
 
 /**
@@ -126,7 +149,7 @@ class ImageSpec(
 
     private val callback = object : Drawable.Callback {
         override fun invalidateDrawable(who: Drawable) {
-            attachedView?.invalidate()
+            attachedView?.postInvalidateOnAnimation()
         }
 
         override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
@@ -154,7 +177,7 @@ class ImageSpec(
         // Đã có ảnh (từ Bitmap/DrawableSource hoặc đã load xong từ trước) thì không cần load nữa.
         if (drawable != null) return
         val loader = ImageLoader.get() ?: return
-        loader.load(this) { view.invalidate() }
+        loader.load(this) { view.postInvalidateOnAnimation() }
     }
 
     override fun onDetachedFromWindow(view: View) {
@@ -166,7 +189,9 @@ class ImageSpec(
     }
 
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        ImageSpec(newLeft, newTop, width, height, source, dst)
+        ImageSpec(newLeft, newTop, width, height, source, dst).also {
+            it.drawable = drawable
+        }
 
     companion object {
         // Shared paint if needed for other places, but Drawables usually handle their own paint
