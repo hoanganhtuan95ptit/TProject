@@ -46,8 +46,8 @@ class MainActivity : AppCompatActivity() {
         val dp48 = (48 * dp).toInt()
         val iconSource = ImageSource.ResSource(R.mipmap.ic_launcher)
 
-        // Loader dùng chung — Glide tự cache nên không tốn gì.
-        val loader = GlideBitmapLoader(this)
+        // Loader singleton — install 1 lần. ImageSpec sẽ tự lookup qua BitmapLoader.get().
+        BitmapLoader.install(GlideBitmapLoader(this))
 
         lifecycleScope.launch {
             val specs = withContext(Dispatchers.Default) {
@@ -60,7 +60,6 @@ class MainActivity : AppCompatActivity() {
             for ((index, spec) in specs.withIndex()) {
                 // Card background wrapper
                 val card = PrecomputedView(this@MainActivity).apply {
-                    this.bitmapLoader = loader
                     this.spec = spec
                     setBackgroundResource(R.drawable.card_background)
                     elevation = 2 * dp
@@ -105,33 +104,33 @@ class MainActivity : AppCompatActivity() {
         val dp12 = (12 * dp).toInt()
         val dp4 = (4 * dp).toInt()
 
-        return LayoutNode.Linear(
+        return LinearNode(
             orientation = Orientation.HORIZONTAL,
             crossAlign = CrossAlign.CENTER,
             gap = dp12,
             padding = EdgeInsets.all(dp12),
             children = listOf(
-                // Icon bên trái — load qua BitmapLoader (Glide)
-                LayoutNode.Image(source = iconSource, width = iconSizePx, height = iconSizePx),
+                // Icon bên trái — load qua BitmapLoader singleton (Glide)
+                ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
                 // Text bên phải
-                LayoutNode.Linear(
+                LinearNode(
                     orientation = Orientation.VERTICAL,
                     gap = dp4,
                     children = listOf(
-                        LayoutNode.Text(
+                        TextNode(
                             text = word,
                             textSizePx = sp16,
                             color = Color.BLACK,
                             typeface = Typeface.DEFAULT_BOLD,
                             maxLines = 3
                         ),
-                        LayoutNode.Text(
+                        TextNode(
                             text = ipa,
                             textSizePx = sp14,
                             color = 0xFF6200EE.toInt(),
                             maxLines = 1
                         ),
-                        LayoutNode.Text(
+                        TextNode(
                             text = meaning,
                             textSizePx = sp12,
                             color = Color.GRAY,

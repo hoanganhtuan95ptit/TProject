@@ -1,29 +1,12 @@
 package com.simple.phonetics.ui.precompute
 
-import android.graphics.Bitmap
-import android.graphics.Typeface
-import android.graphics.drawable.Drawable
-import androidx.annotation.DrawableRes
-
-/**
- * Nguồn ảnh cho [LayoutNode.Image].
- *
- * - [BitmapSource] đã có sẵn bitmap → vẽ ngay, không cần loader.
- * - Các source còn lại cần [BitmapLoader] (vd Glide) load async ở runtime;
- *   trước khi bitmap về, [ImageSpec] sẽ chiếm chỗ trống đúng kích thước.
- *
- * Tất cả source đều immutable & thread-safe để pass qua background thread.
- * Riêng [DrawableSource] giữ reference Drawable — chỉ dùng nếu chắc chắn
- * drawable đó không bị mutate ngoài luồng (Glide sẽ rasterize hộ).
- */
-sealed class ImageSource {
-    data class BitmapSource(val bitmap: Bitmap) : ImageSource()
-    data class ResSource(@DrawableRes val resId: Int) : ImageSource()
-    /** Đường dẫn file trên thiết bị (absolute path). */
-    data class PathSource(val path: String) : ImageSource()
-    data class UrlSource(val url: String) : ImageSource()
-    data class DrawableSource(val drawable: Drawable) : ImageSource()
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared types dùng chung cho toàn bộ engine.
+// Concrete node types nằm trong file riêng:
+//   TextNode   → TextNode.kt
+//   ImageNode  → ImageNode.kt
+//   LinearNode → LinearNode.kt
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Hard constraints from the parent (in pixels).
@@ -60,64 +43,23 @@ enum class CrossAlign { START, CENTER, END }
  * no references to View, Context, Resources, etc.
  *
  * Pre-load Bitmap / resolve color / resolve typeface BEFORE building.
+ *
+ * **Mở rộng**: thêm 1 loại node mới = tạo class kế thừa [LayoutNode] + 1 class
+ * kế thừa [DrawSpec], implement [measure]. Không cần đụng [LayoutEngine] hay
+ * các node có sẵn.
  */
-sealed class LayoutNode {
+abstract class LayoutNode {
 
     abstract val padding: EdgeInsets
 
-    data class Text(
-        val text: CharSequence,
-        val textSizePx: Float,
-        val color: Int,
-        val maxLines: Int = Int.MAX_VALUE,
-        val typeface: Typeface? = null,
-        val lineSpacingMul: Float = 1f,
-        val lineSpacingAdd: Float = 0f,
-        override val padding: EdgeInsets = EdgeInsets.ZERO
-    ) : LayoutNode()
-
     /**
-     * Node ảnh.
-     *
-     * - Với [ImageSource.BitmapSource], [width]/[height] có thể bỏ trống —
-     *   sẽ tự lấy theo bitmap.
-     * - Với các source async (Res/Path/Url/Drawable), **bắt buộc** truyền
-     *   [width] và [height] vì engine phải đo trước khi bitmap về.
-     *   Sẽ throw [IllegalArgumentException] khi build nếu thiếu.
+     * Tự đo và trả về [DrawSpec] tại vị trí ([x], [y]).
+     * Dùng [ctx] để đệ quy đo các child nếu là node container.
      */
-    data class Image(
-        val source: ImageSource,
-        /** null chỉ được phép khi source là BitmapSource. */
-        val width: Int? = null,
-        /** null chỉ được phép khi source là BitmapSource. */
-        val height: Int? = null,
-        override val padding: EdgeInsets = EdgeInsets.ZERO
-    ) : LayoutNode() {
-
-        init {
-            if (source !is ImageSource.BitmapSource) {
-                require(width != null && height != null) {
-                    "width/height bắt buộc cho ImageSource async: $source"
-                }
-            }
-        }
-
-        companion object {
-            /** Tiện ích: giữ tương thích với call-site cũ. */
-            fun fromBitmap(
-                bitmap: Bitmap,
-                width: Int? = null,
-                height: Int? = null,
-                padding: EdgeInsets = EdgeInsets.ZERO
-            ) = Image(ImageSource.BitmapSource(bitmap), width, height, padding)
-        }
-    }
-
-    data class Linear(
-        val orientation: Orientation,
-        val children: List<LayoutNode>,
-        val gap: Int = 0,
-        val crossAlign: CrossAlign = CrossAlign.START,
-        override val padding: EdgeInsets = EdgeInsets.ZERO
-    ) : LayoutNode()
+    abstract fun measure(
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
+    ): DrawSpec
 }

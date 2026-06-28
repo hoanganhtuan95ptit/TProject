@@ -42,29 +42,29 @@ object Example {
         val dp12 = (12 * dp).toInt()
         val dp48 = (48 * dp).toInt()
 
-        return LayoutNode.Linear(
+        return LinearNode(
             orientation = Orientation.HORIZONTAL,
             crossAlign = CrossAlign.CENTER,
             gap = dp12,
             padding = EdgeInsets.all(dp12),
             children = listOf(
-                LayoutNode.Image(
+                ImageNode(
                     source = ImageSource.ResSource(iconResId),
                     width = dp48,
                     height = dp48
                 ),
-                LayoutNode.Linear(
+                LinearNode(
                     orientation = Orientation.VERTICAL,
                     gap = dp8 / 2,
                     children = listOf(
-                        LayoutNode.Text(
+                        TextNode(
                             text = word,
                             textSizePx = sp16,
                             color = Color.BLACK,
                             typeface = Typeface.DEFAULT_BOLD,
                             maxLines = 1
                         ),
-                        LayoutNode.Text(
+                        TextNode(
                             text = ipa,
                             textSizePx = sp14,
                             color = Color.DKGRAY,
