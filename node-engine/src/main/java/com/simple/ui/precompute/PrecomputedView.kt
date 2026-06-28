@@ -7,12 +7,12 @@ import android.view.View
 
 /**
  * View "dumb tuyệt đối": chỉ giữ một [DrawSpec] và uỷ thác việc vẽ cho nó.
- * Không biết Text / Image / Group là gì, cũng không biết BitmapLoader.
+ * Không biết Text / Image / Group là gì, cũng không biết ImageLoader.
  *
  *   view.spec = LayoutEngine.measure(node, Constraints(w))
  *
  * Lifecycle (attach/detach + đổi spec) được forward xuống spec tree;
- * ImageSpec tự lo việc load / cancel bitmap qua loader của chính nó.
+ * ImageSpec tự lo việc load / cancel ảnh qua loader của chính nó.
  */
 class PrecomputedView @JvmOverloads constructor(
     context: Context,

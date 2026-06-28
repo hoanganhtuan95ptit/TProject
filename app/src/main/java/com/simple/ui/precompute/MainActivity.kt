@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         val dp48 = (48 * dp).toInt()
         val iconSource = ImageSource.ResSource(R.mipmap.ic_launcher)
 
-        BitmapLoader.install(GlideBitmapLoader(this))
+        ImageLoader.install(GlideImageLoader(this))
 
         lifecycleScope.launch {
 

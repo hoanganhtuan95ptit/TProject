@@ -12,31 +12,31 @@ import java.io.File
 import java.util.WeakHashMap
 
 /**
- * BitmapLoader dùng Glide. An toàn để dùng làm singleton ở Application scope.
+ * ImageLoader dùng Glide. An toàn để dùng làm singleton ở Application scope.
  *
  * Lưu ý: dùng [Glide.with]`(applicationContext)` để tránh phụ thuộc lifecycle
  * của Activity/Fragment — chu kỳ load được quản lý bởi PrecomputedView qua
  * attach/detach + cancel.
  *
  * Cách dùng (gọi 1 lần ở Application.onCreate):
- *   BitmapLoader.install(GlideBitmapLoader(this))
+ *   ImageLoader.install(GlideImageLoader(this))
  */
-class GlideBitmapLoader(context: Context) : BitmapLoader {
+class GlideImageLoader(context: Context) : ImageLoader {
 
     private val appContext = context.applicationContext
 
     /** Tracking target theo spec để cancel chính xác. Key giữ weak. */
-    private val targets = WeakHashMap<ImageSpec, CustomTarget<Bitmap>>()
+    private val targets = WeakHashMap<ImageSpec, CustomTarget<Drawable>>()
 
     override fun load(spec: ImageSpec, onReady: () -> Unit) {
-        // Có bitmap rồi (BitmapSource hoặc đã load trước đó) → khỏi load.
-        if (spec.bitmap != null) return
+        // Có ảnh rồi (BitmapSource, DrawableSource hoặc đã load trước đó) → khỏi load.
+        if (spec.drawable != null) return
 
         val w = spec.dst.width().coerceAtLeast(1)
         val h = spec.dst.height().coerceAtLeast(1)
 
         val request = Glide.with(appContext)
-            .asBitmap()
+            .asDrawable()
             .override(w, h)
 
         val withModel = when (val s = spec.source) {
@@ -47,17 +47,17 @@ class GlideBitmapLoader(context: Context) : BitmapLoader {
             is ImageSource.DrawableSource -> request.load(s.drawable)
         }
 
-        val target = object : CustomTarget<Bitmap>(w, h) {
+        val target = object : CustomTarget<Drawable>(w, h) {
             override fun onResourceReady(
-                resource: Bitmap,
-                transition: Transition<in Bitmap>?
+                resource: Drawable,
+                transition: Transition<in Drawable>?
             ) {
-                spec.bitmap = resource
+                spec.drawable = resource
                 onReady()
             }
 
             override fun onLoadCleared(placeholder: Drawable?) {
-                spec.bitmap = null
+                spec.drawable = null
             }
         }
 

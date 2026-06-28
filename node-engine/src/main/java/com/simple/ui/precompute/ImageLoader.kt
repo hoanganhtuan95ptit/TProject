@@ -4,28 +4,28 @@ import com.simple.ui.precompute.node.ImageSpec
 
 /**
  * Loader bất đồng bộ cho [com.simple.ui.precompute.node.ImageSpec]. Trách nhiệm:
- *  - Bỏ qua spec đã có bitmap (BitmapSource).
- *  - Với các source khác: load → set [com.simple.ui.precompute.node.ImageSpec.bitmap] → gọi [onReady]
+ *  - Bỏ qua spec đã có bitmap (BitmapSource) hoặc drawable.
+ *  - Với các source khác: load → set [com.simple.ui.precompute.node.ImageSpec.drawable] → gọi [onReady]
  *    trên main thread để view invalidate.
  *  - Cancel khi spec bị detach hoặc thay thế.
  *
- * Implementation chuẩn: GlideBitmapLoader (nằm trong module :app).
- * Inject bằng [BitmapLoader.install] một lần ở Application.
+ * Implementation chuẩn: GlideImageLoader (nằm trong module :app).
+ * Inject bằng [ImageLoader.install] một lần ở Application.
  */
-interface BitmapLoader {
+interface ImageLoader {
     fun load(spec: ImageSpec, onReady: () -> Unit)
     fun cancel(spec: ImageSpec)
 
     companion object {
         @Volatile
-        private var instance: BitmapLoader? = null
+        private var instance: ImageLoader? = null
 
         /** Đăng ký loader mặc định (gọi 1 lần ở Application). */
-        fun install(loader: BitmapLoader) {
+        fun install(loader: ImageLoader) {
             instance = loader
         }
 
         /** Trả về loader đã đăng ký, hoặc null nếu chưa install. */
-        fun get(): BitmapLoader? = instance
+        fun get(): ImageLoader? = instance
     }
 }
