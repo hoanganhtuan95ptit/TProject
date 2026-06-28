@@ -16,129 +16,240 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
+    private val dp by lazy { resources.displayMetrics.density }
+    private val cardWidth by lazy { resources.displayMetrics.widthPixels - (32 * dp).toInt() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val container = findViewById<LinearLayout>(R.id.container)
-        val dp = resources.displayMetrics.density
-        val screenWidth = resources.displayMetrics.widthPixels
 
-        // Dữ liệu mẫu
+        // Dữ liệu mẫu — dùng chung cho cả 2 demo
         val items = listOf(
-            Triple("Xem thông tin tổng quan về thay đổi đối với ứng dụng và kiểm soát thời điểm phát hành/thời điểm gửi đi các thay đổi để Google xem xét.", "/həˈloʊ/", "Xin chào"),
-            Triple("World", "/wɜːrld/", "Thế giới"),
-            Triple("Android", "/ˈændrɔɪd/", "Hệ điều hành"),
-            Triple("Kotlin", "/ˈkɒtlɪn/", "Ngôn ngữ lập trình"),
-            Triple("Layout", "/ˈleɪaʊt/", "Bố cục"),
-            Triple("Engine", "/ˈendʒɪn/", "Động cơ"),
-            Triple("Precompute", "/priːkəmˈpjuːt/", "Tính trước"),
-            Triple("Canvas", "/ˈkænvəs/", "Khung vẽ"),
-            Triple("Android", "/ˈændrɔɪd/", "Hệ điều hành"),
-            Triple("Kotlin", "/ˈkɒtlɪn/", "Ngôn ngữ lập trình"),
-            Triple("Layout", "/ˈleɪaʊt/", "Bố cục"),
-            Triple("Engine", "/ˈendʒɪn/", "Động cơ"),
-            Triple("Precompute", "/priːkəmˈpjuːt/", "Tính trước"),
-            Triple("Canvas", "/ˈkænvəs/", "Khung vẽ"),
+            Triple("Hello World — a very long word to test text wrapping behavior", "/həˈloʊ wɜːrld/", "Xin chào thế giới"),
+            Triple("Google nói Advertising ID là mã định danh do Google Play services cung cấp, người dùng có thể reset hoặc xóa. Khi bị xóa, app đọc ID có thể nhận chuỗi toàn số 0",   "/ˈændrɔɪd/",   "Hệ điều hành"),
+            Triple("Kotlin",    "/ˈkɒtlɪn/",    "Ngôn ngữ lập trình"),
+            Triple("Precompute","/priːkəmˈpjuːt/","Tính trước"),
         )
 
-        // Icon load async qua Glide từ resource → demo ImageSource.ResSource.
         val dp48 = (48 * dp).toInt()
         val iconSource = ImageSource.ResSource(R.mipmap.ic_launcher)
 
-        // Loader singleton — install 1 lần. ImageSpec sẽ tự lookup qua BitmapLoader.get().
         BitmapLoader.install(GlideBitmapLoader(this))
 
         lifecycleScope.launch {
-            val specs = withContext(Dispatchers.Default) {
+
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 1 — LinearNode
+            //   Layout: Row(icon | Column(title, ipa, meaning))
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "① LinearNode  —  Row / Column")
+
+            val linearSpecs = withContext(Dispatchers.Default) {
                 items.map { (word, ipa, meaning) ->
-                    val node = buildCardNode(word, ipa, meaning, iconSource, dp48)
-                    LayoutEngine.measure(node, Constraints(screenWidth - (32 * dp).toInt()))
+                    LayoutEngine.measure(
+                        buildLinearCard(word, ipa, meaning, iconSource, dp48),
+                        Constraints(cardWidth)
+                    )
                 }
             }
+            addCards(container, linearSpecs)
 
-            for ((index, spec) in specs.withIndex()) {
-                // Card background wrapper
-                val card = PrecomputedView(this@MainActivity).apply {
-                    this.spec = spec
-                    setBackgroundResource(R.drawable.card_background)
-                    elevation = 2 * dp
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 2 — ConstraintNode
+            //   Layout:
+            //     icon  ← anchored start-top to PARENT
+            //     badge ← anchored end-top  to PARENT  ("EN" label)
+            //     title ← startToEndOf(icon), endToStartOf(badge), MatchConstraint
+            //     ipa   ← topToBottomOf(title), same horizontal span
+            //     meaning ← topToBottomOf(ipa),  same horizontal span
+            //
+            //   Dependency graph (không có cycle):
+            //     PARENT → icon, badge
+            //     icon + badge → title
+            //     title → ipa → meaning
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "② ConstraintNode  —  tương tự ConstraintLayout")
+
+            val constraintSpecs = withContext(Dispatchers.Default) {
+                items.map { (word, ipa, meaning) ->
+                    LayoutEngine.measure(
+                        buildConstraintCard(word, ipa, meaning, iconSource, dp48),
+                        Constraints(cardWidth)
+                    )
                 }
-
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    if (index > 0) topMargin = (12 * dp).toInt()
-                }
-
-                container.addView(card, lp)
             }
+            addCards(container, constraintSpecs)
 
-            // Thêm label cuối
-            val footer = TextView(this@MainActivity).apply {
-                text = "${items.size} items — rendered with PrecomputedView"
+            // Footer
+            container.addView(TextView(this@MainActivity).apply {
+                text = "${items.size * 2} cards — LinearNode + ConstraintNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
-                setPadding(0, (16 * dp).toInt(), 0, (16 * dp).toInt())
-            }
-            container.addView(footer)
+                setPadding(0, dp(16), 0, dp(24))
+            })
         }
     }
 
+    // ── UI helpers ────────────────────────────────────────────────────────────
+
+    private fun addSectionLabel(container: LinearLayout, label: String) {
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(20) }
+
+        container.addView(TextView(this).apply {
+            text = label
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            setBackgroundColor(0xFF6200EE.toInt())
+        }, lp)
+    }
+
+    private fun addCards(container: LinearLayout, specs: List<DrawSpec>) {
+        specs.forEachIndexed { index, spec ->
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = if (index == 0) dp(10) else dp(10) }
+
+            container.addView(PrecomputedView(this@MainActivity).apply {
+                this.spec = spec
+                setBackgroundResource(R.drawable.card_background)
+                elevation = 2 * dp
+            }, lp)
+        }
+    }
+
+    // ── Card builders ─────────────────────────────────────────────────────────
+
     /**
-     * Build LayoutNode cho một card: icon (trái) + (word + ipa + meaning) dọc (phải).
+     * **LinearNode** card: icon bên trái, cột text bên phải.
+     *
+     * ```
+     * ┌──────────────────────────────────┐
+     * │ [icon]  title (bold)             │
+     * │         /ipa/                    │
+     * │         meaning                  │
+     * └──────────────────────────────────┘
+     * ```
      */
-    private fun buildCardNode(
+    private fun buildLinearCard(
         word: String,
         ipa: String,
         meaning: String,
         iconSource: ImageSource,
-        iconSizePx: Int
-    ): LayoutNode {
-        val dp = resources.displayMetrics.density
-        val sp16 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 16f, resources.displayMetrics)
-        val sp14 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14f, resources.displayMetrics)
-        val sp12 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
-        val dp12 = (12 * dp).toInt()
-        val dp4 = (4 * dp).toInt()
-
-        return LinearNode(
-            orientation = Orientation.HORIZONTAL,
-            crossAlign = CrossAlign.CENTER,
-            gap = dp12,
-            padding = EdgeInsets.all(dp12),
-            children = listOf(
-                // Icon bên trái — load qua BitmapLoader singleton (Glide)
-                ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
-                // Text bên phải
-                LinearNode(
-                    orientation = Orientation.VERTICAL,
-                    gap = dp4,
-                    children = listOf(
-                        TextNode(
-                            text = word,
-                            textSizePx = sp16,
-                            color = Color.BLACK,
-                            typeface = Typeface.DEFAULT_BOLD,
-                            maxLines = 3
-                        ),
-                        TextNode(
-                            text = ipa,
-                            textSizePx = sp14,
-                            color = 0xFF6200EE.toInt(),
-                            maxLines = 1
-                        ),
-                        TextNode(
-                            text = meaning,
-                            textSizePx = sp12,
-                            color = Color.GRAY,
-                            maxLines = 2
-                        )
-                    )
+        iconSizePx: Int,
+    ): LayoutNode = LinearNode(
+        orientation = Orientation.HORIZONTAL,
+        crossAlign = CrossAlign.CENTER,
+        gap = dp(12),
+        padding = EdgeInsets.all(dp(12)),
+        children = listOf(
+            ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
+            LinearNode(
+                orientation = Orientation.VERTICAL,
+                gap = dp(4),
+                children = listOf(
+                    TextNode(word,    sp(16f), Color.BLACK,         typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                    TextNode(ipa,     sp(14f), 0xFF6200EE.toInt(),  maxLines = 1),
+                    TextNode(meaning, sp(12f), Color.GRAY,          maxLines = 2),
                 )
             )
         )
-    }
+    )
+
+    /**
+     * **ConstraintNode** card: icon + badge nằm cạnh nhau trên cùng,
+     * title / ipa / meaning tự căn theo constraint.
+     *
+     * ```
+     * ┌──────────────────────────────────┐
+     * │ [icon]  title (MatchConstraint) [EN]│
+     * │         /ipa/                   │
+     * │         meaning                 │
+     * └──────────────────────────────────┘
+     * ```
+     *
+     * Thứ tự resolve (không có cycle):
+     *   1. icon, badge  → phụ thuộc PARENT (resolve ngay vòng đầu)
+     *   2. title        → phụ thuộc icon + badge
+     *   3. ipa          → phụ thuộc title
+     *   4. meaning      → phụ thuộc ipa
+     */
+    private fun buildConstraintCard(
+        word: String,
+        ipa: String,
+        meaning: String,
+        iconSource: ImageSource,
+        iconSizePx: Int,
+    ): LayoutNode = ConstraintNode(
+        padding = EdgeInsets.all(dp(12)),
+        children = listOf(
+
+            // ① Icon — anchor start-top vào PARENT
+            ConstraintChild(
+                id = "icon",
+                node = ImageNode(source = iconSource, width = iconSizePx, height = iconSizePx),
+                startToStartOf = ConstraintNode.PARENT,
+                topToTopOf     = ConstraintNode.PARENT,
+            ),
+
+            // ② Badge "EN" — anchor end-top vào PARENT
+            ConstraintChild(
+                id = "badge",
+                node = TextNode(
+                    text       = "EN",
+                    textSizePx = sp(10f),
+                    color      = 0xFF6200EE.toInt(),
+                    typeface   = Typeface.DEFAULT_BOLD,
+                    padding    = EdgeInsets.symmetric(h = dp(6), v = dp(3)),
+                ),
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+            ),
+
+            // ③ Title — nằm giữa icon (start) và badge (end), fill hết chiều rộng
+            ConstraintChild(
+                id   = "title",
+                node = TextNode(word, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                startToEndOf = "icon",  marginStart = dp(12),
+                endToStartOf = "badge", marginEnd   = dp(8),
+                topToTopOf   = ConstraintNode.PARENT,
+                width        = ConstraintDim.MatchConstraint,
+            ),
+
+            // ④ IPA — ngay bên dưới title, căn trái/phải theo title
+            ConstraintChild(
+                id   = "ipa",
+                node = TextNode(ipa, sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                startToStartOf = "title",
+                endToEndOf     = "title",
+                topToBottomOf  = "title", marginTop = dp(4),
+                width          = ConstraintDim.MatchConstraint,
+            ),
+
+            // ⑤ Meaning — ngay bên dưới ipa, căn trái/phải theo ipa
+            ConstraintChild(
+                id   = "meaning",
+                node = TextNode(meaning, sp(12f), Color.GRAY, maxLines = 2),
+                startToStartOf = "ipa",
+                endToEndOf     = "ipa",
+                topToBottomOf  = "ipa", marginTop = dp(4),
+                width          = ConstraintDim.MatchConstraint,
+            ),
+        )
+    )
+
+    // ── Dimension helpers ─────────────────────────────────────────────────────
+
+    private fun dp(value: Int): Int = (value * dp).toInt()
+
+    private fun sp(value: Float): Float =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, resources.displayMetrics)
 }
