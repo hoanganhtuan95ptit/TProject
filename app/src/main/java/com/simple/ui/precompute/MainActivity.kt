@@ -1,4 +1,4 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.ui.precompute
 
 import android.graphics.Color
 import android.graphics.Typeface
@@ -9,18 +9,18 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.simple.phonetics.ui.precompute.node.ConstraintChild
-import com.simple.phonetics.ui.precompute.node.ConstraintDim
-import com.simple.phonetics.ui.precompute.node.ConstraintNode
-import com.simple.phonetics.ui.precompute.node.Constraints
-import com.simple.phonetics.ui.precompute.node.CrossAlign
-import com.simple.phonetics.ui.precompute.node.EdgeInsets
-import com.simple.phonetics.ui.precompute.node.ImageNode
-import com.simple.phonetics.ui.precompute.node.ImageSource
-import com.simple.phonetics.ui.precompute.node.LayoutNode
-import com.simple.phonetics.ui.precompute.node.LinearNode
-import com.simple.phonetics.ui.precompute.node.Orientation
-import com.simple.phonetics.ui.precompute.node.TextNode
+import com.simple.ui.precompute.node.ConstraintChild
+import com.simple.ui.precompute.node.ConstraintDim
+import com.simple.ui.precompute.node.ConstraintNode
+import com.simple.ui.precompute.node.Constraints
+import com.simple.ui.precompute.node.CrossAlign
+import com.simple.ui.precompute.node.EdgeInsets
+import com.simple.ui.precompute.node.ImageNode
+import com.simple.ui.precompute.node.ImageSource
+import com.simple.ui.precompute.node.LayoutNode
+import com.simple.ui.precompute.node.LinearNode
+import com.simple.ui.precompute.node.Orientation
+import com.simple.ui.precompute.node.TextNode
 import com.simple.t.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

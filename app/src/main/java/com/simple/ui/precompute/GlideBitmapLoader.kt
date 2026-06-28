@@ -1,4 +1,4 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.ui.precompute
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -6,8 +6,8 @@ import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.simple.phonetics.ui.precompute.node.ImageSource
-import com.simple.phonetics.ui.precompute.node.ImageSpec
+import com.simple.ui.precompute.node.ImageSource
+import com.simple.ui.precompute.node.ImageSpec
 import java.io.File
 import java.util.WeakHashMap
 

@@ -1,4 +1,4 @@
-package com.simple.phonetics.ui.precompute.node
+package com.simple.ui.precompute.node
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,9 +7,9 @@ import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.view.View
 import androidx.annotation.DrawableRes
-import com.simple.phonetics.ui.precompute.BitmapLoader
-import com.simple.phonetics.ui.precompute.DrawSpec
-import com.simple.phonetics.ui.precompute.MeasureContext
+import com.simple.ui.precompute.BitmapLoader
+import com.simple.ui.precompute.DrawSpec
+import com.simple.ui.precompute.MeasureContext
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ImageSource — nguồn ảnh (sealed, immutable, thread-safe).
@@ -21,7 +21,7 @@ import com.simple.phonetics.ui.precompute.MeasureContext
  * Nguồn ảnh cho [ImageNode].
  *
  * - [BitmapSource] đã có sẵn bitmap → vẽ ngay, không cần loader.
- * - Các source còn lại cần [com.simple.phonetics.ui.precompute.BitmapLoader] load async ở runtime;
+ * - Các source còn lại cần [com.simple.ui.precompute.BitmapLoader] load async ở runtime;
  *   trước khi bitmap về, [ImageSpec] sẽ chiếm chỗ trống đúng kích thước.
  *
  * Tất cả source đều immutable & thread-safe để pass qua background thread.
@@ -99,7 +99,7 @@ data class ImageNode(
  * sau khi spec đã measure xong (cho UrlSource / ResSource / ...).
  *
  * - Nếu source là [ImageSource.BitmapSource]: [bitmap] có ngay từ đầu.
- * - Ngược lại: [bitmap] = null cho tới khi [com.simple.phonetics.ui.precompute.BitmapLoader] gọi setter;
+ * - Ngược lại: [bitmap] = null cho tới khi [com.simple.ui.precompute.BitmapLoader] gọi setter;
  *   trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
  */
 class ImageSpec(

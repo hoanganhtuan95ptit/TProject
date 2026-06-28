@@ -1,11 +1,11 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.ui.precompute
 
-import com.simple.phonetics.ui.precompute.node.ImageSpec
+import com.simple.ui.precompute.node.ImageSpec
 
 /**
- * Loader bất đồng bộ cho [com.simple.phonetics.ui.precompute.node.ImageSpec]. Trách nhiệm:
+ * Loader bất đồng bộ cho [com.simple.ui.precompute.node.ImageSpec]. Trách nhiệm:
  *  - Bỏ qua spec đã có bitmap (BitmapSource).
- *  - Với các source khác: load → set [com.simple.phonetics.ui.precompute.node.ImageSpec.bitmap] → gọi [onReady]
+ *  - Với các source khác: load → set [com.simple.ui.precompute.node.ImageSpec.bitmap] → gọi [onReady]
  *    trên main thread để view invalidate.
  *  - Cancel khi spec bị detach hoặc thay thế.
  *

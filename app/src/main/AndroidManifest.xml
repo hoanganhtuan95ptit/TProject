@@ -13,7 +13,7 @@
         android:theme="@style/Theme.TProject">
 
         <activity
-            android:name="com.simple.phonetics.ui.precompute.MainActivity"
+            android:name="com.simple.ui.precompute.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

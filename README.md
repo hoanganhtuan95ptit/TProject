@@ -1,200 +1,818 @@
-# Precompute Layout
+# 📖 Hướng Dẫn Sử Dụng `node-engine`
 
-Tài liệu kỹ thuật cho module `com.simple.phonetics.ui.precompute`.
+Thư viện **node-engine** giải quyết vấn đề measure & layout tốn kém trên UI thread bằng cách:
 
----
-
-## 1. Mục đích
-
-Tách hoàn toàn việc **đo kích thước (measure)** và **bố cục (layout)** ra khỏi UI thread, để `onMeasure` và `onDraw` của View chỉ làm thao tác rẻ tiền: đọc số đã tính sẵn và phát lệnh vẽ.
-
-Nguồn gốc: các custom view phức tạp (waveform, biểu đồ phonetics, card có nhiều text + icon) đang đo trên UI thread → janky khi scroll, khi data đổi, khi inflate hàng loạt.
+> **Mô tả layout bằng data class → Đo ở background thread → View chỉ vẽ kết quả đã tính sẵn.**
 
 ---
 
-## 2. Vấn đề & bối cảnh
+## Mục lục
 
-Trên Android stock:
-- `View.onMeasure()` chạy ở UI thread, bao gồm cả text measurement (đắt nhất).
-- `wrap_content` lan ngược, mỗi lần dữ liệu đổi → measure lại cả cây.
-- RecyclerView bind item → measure ngay tại frame hiển thị → drop frame.
+1. [Bối cảnh & Vấn đề](#1-bối-cảnh--vấn-đề)
+2. [Kiến trúc tổng quan](#2-kiến-trúc-tổng-quan)
+3. [Cài đặt ban đầu](#3-cài-đặt-ban-đầu)
+4. [Các node có sẵn](#4-các-node-có-sẵn)
+   - [TextNode](#41-textnode----văn-bản)
+   - [ImageNode](#42-imagenode----hình-ảnh)
+   - [LinearNode](#43-linearnode----container-xếp-tuần-tự)
+   - [ConstraintNode](#44-constraintnode----layout-theo-constraint)
+   - [EdgeInsets](#45-edgeinsets----paddingmargin)
+5. [Đo layout với LayoutEngine](#5-đo-layout-với-layoutengine)
+6. [Gắn vào View](#6-gắn-vào-view)
+7. [Luồng ViewModel → Fragment](#7-luồng-viewmodel--fragment)
+8. [Dùng trong RecyclerView](#8-dùng-trong-recyclerview)
+9. [Ví dụ đầy đủ](#9-ví-dụ-đầy-đủ)
+10. [Mở rộng thêm node mới](#10-mở-rộng-thêm-node-mới)
+11. [Hạn chế & khi nào KHÔNG nên dùng](#11-hạn-chế--khi-nào-không-nên-dùng)
+12. [Hướng phát triển tiếp theo](#12-hướng-phát-triển-tiếp-theo)
+13. [Tham khảo nhanh](#13-tham-khảo-nhanh)
 
-Compose / Flutter cũng đo trên UI thread vì layout của họ phải xử lý case tổng quát (constraint phụ thuộc parent, sibling, animation từng frame).
+---
 
-**Trong app này**, ta có điều kiện thuận lợi:
-- Biết trước width (full screen / list item full width).
+## 1. Bối cảnh & Vấn đề
+
+Trên Android stock, `View.onMeasure()` chạy ở **UI thread**, bao gồm cả text measurement (thao tác đắt nhất). Hệ quả:
+
+- `wrap_content` lan ngược — mỗi lần dữ liệu thay đổi, đo lại cả cây.
+- RecyclerView bind item → measure ngay tại frame hiển thị → **drop frame / janky**.
+
+**Điều kiện thuận lợi trong app này:**
+
+- Biết trước `maxWidth` (full screen / list item full width).
 - Data tĩnh trong nhiều giây/phút.
 - View self-contained, không phụ thuộc sibling.
 
-→ Có thể đo 1 lần ở background, cache kết quả, view chỉ vẽ.
+→ Có thể **đo 1 lần ở background, cache kết quả, view chỉ vẽ**.
 
 ---
 
-## 3. Yêu cầu
-
-### Chức năng
-- Mô tả layout bằng data class (immutable).
-- Hỗ trợ tối thiểu: **Text**, **Image**, **Linear** (horizontal/vertical, gap, padding, cross-align).
-- Đo ở background, trả về spec đầy đủ (vị trí + kích thước + đối tượng vẽ sẵn).
-- View chỉ giữ spec và vẽ.
-- Dễ mở rộng spec mới (Border, Divider, Shape...) mà không sửa View hay engine.
-
-### Phi chức năng
-- **Thread-safe**: engine không đụng bất kỳ API UI thread nào (View, Context, Resources sau khi đã trích sẵn).
-- **Zero allocation trong `onDraw`**: Paint, Rect, StaticLayout build sẵn trong spec.
-- **Immutability**: spec sau khi hand-off sang UI là read-only.
-- **Không phụ thuộc framework ngoài**: chỉ Android SDK + Kotlin coroutines (đã có sẵn trong project).
-
----
-
-## 4. Kiến trúc
+## 2. Kiến trúc tổng quan
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌──────────────┐
 │   LayoutNode    │───▶│   LayoutEngine   │───▶│   DrawSpec   │
-│  (mô tả, data)  │    │  (đo, Dispatch.  │    │ (kết quả +   │
-│                 │    │   Default)       │    │  cách vẽ)    │
+│  (mô tả, data)  │    │  (đo, bg thread) │    │ (kết quả +   │
+│                 │    │                  │    │  cách vẽ)    │
 └─────────────────┘    └──────────────────┘    └──────────────┘
         ▲                                              │
         │                                              ▼
    ViewModel /                                  ┌──────────────────┐
    Repository                                   │ PrecomputedView  │
-                                                │  (chỉ vẽ)        │
-                                                └──────────────────┘
+                                                 │  (chỉ vẽ)        │
+                                                 └──────────────────┘
         bất kỳ thread          bg thread              UI thread
 ```
 
 | Tầng | Trách nhiệm | Thread |
 |------|-------------|--------|
-| `LayoutNode` | Mô tả cây layout (data thuần) | bất kỳ |
-| `LayoutEngine.measure()` | Đo, gán vị trí, build StaticLayout / Rect | bg |
+| `LayoutNode` | Mô tả cây layout — thuần data, immutable | bất kỳ |
+| `LayoutEngine.measure()` | Đo kích thước, gán vị trí, build `StaticLayout` / `Rect` | background |
 | `DrawSpec` (đa hình) | Giữ kết quả + tự biết `draw(canvas)` | hand-off |
 | `PrecomputedView` | Báo size + uỷ thác vẽ cho spec | UI |
 
+**Quy tắc vàng:** mọi resource phải resolve sẵn trước khi đưa vào engine — `Bitmap` đã decode, `color` là `Int`, `Typeface` đã load. Engine **không được đụng `Context`**.
+
 ---
 
-## 5. Các thành phần
+## 3. Cài đặt ban đầu
 
-### `LayoutNode.kt`
-Sealed class mô tả input. Subtypes:
-- `Text` — text, size, color, maxLines, typeface, line spacing, padding.
-- `Image` — `Bitmap` đã load sẵn, width/height override (null = intrinsic), padding.
-- `Linear` — orientation, children, gap, cross-align (START/CENTER/END), padding.
+### 3.1 Thêm module
 
-Phụ trợ: `Constraints(maxWidth, maxHeight)`, `EdgeInsets`, `Orientation`, `CrossAlign`.
+`settings.gradle.kts`:
 
-**Quy tắc:** mọi resource phải resolve sẵn (`Bitmap` đã decode, color là `Int`, typeface đã load) — engine không được đụng `Context`.
-
-### `LayoutEngine.kt`
-Object pure-function: `measure(node, constraints) → DrawSpec`.
-
-- Text: dùng `StaticLayout.Builder` với width = `constraint - padding`.
-- Image: trả `ImageSpec` với `dst Rect` pre-built (offset bằng padding).
-- Linear: 2-pass — pass 1 đo tất cả con để biết cross size, pass 2 gán vị trí với cross-align.
-
-Không state. Gọi từ bất kỳ thread nào, lý tưởng là `Dispatchers.Default`.
-
-### `DrawSpec.kt`
-Abstract class — hợp đồng:
 ```kotlin
-abstract class DrawSpec {
-    abstract val left: Int; abstract val top: Int
-    abstract val width: Int; abstract val height: Int
-    fun draw(canvas: Canvas)                    // wrap save/translate/restore
-    protected abstract fun onDrawContent(canvas: Canvas)
-    abstract fun withPosition(l: Int, t: Int): DrawSpec
+include(":node-engine")
+```
+
+`app/build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation(project(":node-engine"))
 }
 ```
 
-Subtypes hiện có:
-- `TextSpec` — vẽ `StaticLayout.draw(canvas)`.
-- `ImageSpec` — `canvas.drawBitmap(bmp, null, dst, sharedPaint)`.
-- `GroupSpec` — đệ quy `children[i].draw(canvas)`.
+### 3.2 Cài BitmapLoader (bắt buộc nếu dùng ảnh async)
 
-Mở rộng: tạo class kế thừa `DrawSpec`, override 3 method, xong. Không cần sửa View.
-
-### `PrecomputedView.kt`
-~25 dòng:
-```kotlin
-var spec: DrawSpec? = null      // setter requestLayout + invalidate
-override fun onMeasure(...) { setMeasuredDimension(spec?.width ?: 0, spec?.height ?: 0) }
-override fun onDraw(canvas) { spec?.draw(canvas) }
-```
-Không biết Text/Image/Group, không đo, không coroutine.
-
-### `Example.kt`
-- `Example.cardNode(...)` build cây mẫu (icon + word + IPA).
-- `CardViewModel` minh hoạ luồng: `viewModelScope.launch { measure trên Dispatchers.Default → emit StateFlow<DrawSpec?> }`.
-
----
-
-## 6. Luồng hoạt động
-
-```
-1. Caller (ViewModel hoặc Repository) build LayoutNode (data thuần).
-2. Biết width? (screenWidth từ DisplayMetrics, hoặc đo container 1 lần).
-3. launch(Dispatchers.Default) { LayoutEngine.measure(node, Constraints(width)) }
-4. Kết quả DrawSpec → emit qua StateFlow / LiveData / callback.
-5. Fragment collect → gán view.spec = result trên UI thread.
-6. View requestLayout → onMeasure đọc spec.width/height → onDraw gọi spec.draw().
-```
-
-Race condition: nếu data đổi liên tục, dùng `cancel + launch lại` hoặc `Flow.mapLatest` để chỉ giữ kết quả mới nhất.
-
----
-
-## 7. Cách dùng
+Gọi **một lần duy nhất** trong `Application.onCreate()`:
 
 ```kotlin
-// Trong ViewModel
-private val _spec = MutableStateFlow<DrawSpec?>(null)
-val spec: StateFlow<DrawSpec?> = _spec
-
-fun loadCard(word: String, ipa: String, widthPx: Int) {
-    viewModelScope.launch {
-        val node = Example.cardNode(appContext, R.drawable.ic_word, word, ipa)
-        val result = withContext(Dispatchers.Default) {
-            LayoutEngine.measure(node, Constraints(widthPx))
-        }
-        _spec.value = result
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // GlideBitmapLoader là implementation của bạn nằm trong module :app
+        BitmapLoader.install(GlideBitmapLoader(this))
     }
 }
+```
 
-// Trong Fragment
-viewLifecycleOwner.lifecycleScope.launch {
-    viewModel.spec.collect { precomputedView.spec = it }
+> ⚠️ **Quan trọng:** Nếu không `install` `BitmapLoader`, mọi `ImageNode` với nguồn
+> `ResSource` / `UrlSource` / `PathSource` / `DrawableSource` sẽ **không hiển thị ảnh**.
+> Với `BitmapSource` (bitmap đã load sẵn) thì không cần loader.
+
+---
+
+## 4. Các node có sẵn
+
+### 4.1 `TextNode` — Văn bản
+
+```kotlin
+TextNode(
+    text           = "Hello World",
+    textSizePx     = 18f * resources.displayMetrics.scaledDensity, // sp → px
+    color          = Color.BLACK,
+    maxLines       = 2,
+    typeface       = Typeface.DEFAULT_BOLD,   // null = hệ thống
+    lineSpacingMul = 1.2f,
+    lineSpacingAdd = 0f,
+    padding        = EdgeInsets.all(8.dp)
+)
+```
+
+| Tham số | Kiểu | Bắt buộc | Ghi chú |
+|---------|------|:--------:|---------|
+| `text` | `CharSequence` | ✅ | Hỗ trợ `SpannableString` |
+| `textSizePx` | `Float` | ✅ | Đơn vị **pixel** — tự quy đổi `sp → px` |
+| `color` | `Int` | ✅ | `Color.BLACK`, `0xFF334455.toInt()`, v.v. |
+| `maxLines` | `Int` | | Mặc định không giới hạn (`Int.MAX_VALUE`) |
+| `typeface` | `Typeface?` | | Đã load sẵn; engine không đụng `Context` |
+| `lineSpacingMul` | `Float` | | Mặc định `1f` |
+| `lineSpacingAdd` | `Float` | | Mặc định `0f` |
+| `padding` | `EdgeInsets` | | Mặc định `EdgeInsets.ZERO` |
+
+Khi vượt quá `maxLines`, text tự động bị ellipsize (`…`) ở cuối.
+
+---
+
+### 4.2 `ImageNode` — Hình ảnh
+
+**Bitmap có sẵn (đơn giản nhất, không cần BitmapLoader):**
+
+```kotlin
+ImageNode.fromBitmap(
+    bitmap  = myBitmap,
+    width   = 48.dp,   // null = lấy theo bitmap.width
+    height  = 48.dp,
+    padding = EdgeInsets.ZERO
+)
+```
+
+**Từ drawable resource:**
+
+```kotlin
+ImageNode(
+    source  = ImageSource.ResSource(R.drawable.ic_logo),
+    width   = 48.dp,   // BẮT BUỘC với async source
+    height  = 48.dp,
+    padding = EdgeInsets(right = 8.dp)
+)
+```
+
+**Từ URL:**
+
+```kotlin
+ImageNode(
+    source = ImageSource.UrlSource("https://example.com/photo.jpg"),
+    width  = 200.dp,
+    height = 120.dp
+)
+```
+
+**Từ Drawable object:**
+
+```kotlin
+ImageNode(
+    source = ImageSource.DrawableSource(myDrawable),
+    width  = 24.dp,
+    height = 24.dp
+)
+```
+
+> ⚠️ **Bắt buộc `width` & `height`** với mọi source **không phải `BitmapSource`**.
+> Engine cần đặt chỗ trước khi bitmap về — nếu thiếu sẽ ném `IllegalArgumentException`.
+
+Trong khi bitmap chưa load xong, `ImageSpec` vẫn **chiếm đúng kích thước** và không vẽ gì. Khi bitmap về, view tự `invalidate()`.
+
+---
+
+### 4.3 `LinearNode` — Container xếp tuần tự
+
+```kotlin
+// Hàng ngang
+LinearNode(
+    orientation = Orientation.HORIZONTAL,
+    children    = listOf(iconNode, textNode),
+    gap         = 8.dp,
+    crossAlign  = CrossAlign.CENTER,     // căn giữa theo chiều dọc
+    padding     = EdgeInsets.symmetric(h = 16.dp, v = 12.dp)
+)
+
+// Hàng dọc
+LinearNode(
+    orientation = Orientation.VERTICAL,
+    children    = listOf(titleNode, subtitleNode, imageNode),
+    gap         = 4.dp,
+    crossAlign  = CrossAlign.START
+)
+```
+
+| Tham số | Kiểu | Ghi chú |
+|---------|------|---------|
+| `orientation` | `Orientation` | `HORIZONTAL` / `VERTICAL` |
+| `children` | `List<LayoutNode>` | Danh sách con theo thứ tự |
+| `gap` | `Int` | Khoảng cách **pixel** giữa các children trên trục chính |
+| `crossAlign` | `CrossAlign` | `START` / `CENTER` / `END` trên trục phụ |
+| `padding` | `EdgeInsets` | Padding bao ngoài toàn bộ container |
+
+**Thuật toán đo 2 pass:**
+1. **Pass 1** — đo tất cả children để biết cross-size lớn nhất.
+2. **Pass 2** — gán vị trí với `crossAlign` qua `DrawSpec.withPosition()`.
+
+---
+
+### 4.4 `ConstraintNode` — Layout theo constraint
+
+Tương tự `ConstraintLayout` trong XML. Linh hoạt hơn `LinearNode` khi cần neo các phần tử vào nhau theo nhiều chiều.
+
+```kotlin
+val PARENT = ConstraintNode.PARENT
+
+ConstraintNode(
+    padding  = EdgeInsets.all(16.dp),
+    children = listOf(
+        ConstraintChild(
+            id             = "avatar",
+            node           = ImageNode(ImageSource.ResSource(R.drawable.avatar), 40.dp, 40.dp),
+            startToStartOf = PARENT,  marginStart = 0,
+            topToTopOf     = PARENT,  marginTop   = 0,
+        ),
+        ConstraintChild(
+            id           = "name",
+            node         = TextNode("Nguyễn Văn A", 16.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+            startToEndOf = "avatar", marginStart = 12.dp,
+            endToEndOf   = PARENT,
+            topToTopOf   = "avatar",
+            width        = ConstraintDim.MatchConstraint,
+        ),
+        ConstraintChild(
+            id             = "email",
+            node           = TextNode("nva@example.com", 13.sp, Color.GRAY),
+            startToStartOf = "name",
+            topToBottomOf  = "name", marginTop = 4.dp,
+        ),
+    )
+)
+```
+
+#### Các loại `ConstraintDim`
+
+| Giá trị | Ý nghĩa |
+|---------|---------|
+| `ConstraintDim.WrapContent` | *(Mặc định)* Chiều rộng/cao theo nội dung |
+| `ConstraintDim.MatchConstraint` | Lấp đầy khoảng giữa 2 anchor cùng trục (= `0dp` trong XML). Yêu cầu cả 2 constraint cùng trục phải set. |
+| `ConstraintDim.Fixed(px)` | Cố định giá trị pixel |
+
+#### Constraint ngang
+
+| Thuộc tính | Nghĩa |
+|-----------|-------|
+| `startToStartOf = "id"` | Cạnh trái của this = cạnh trái của target |
+| `startToEndOf = "id"` | Cạnh trái của this = cạnh phải của target |
+| `endToEndOf = "id"` | Cạnh phải của this = cạnh phải của target |
+| `endToStartOf = "id"` | Cạnh phải của this = cạnh trái của target |
+
+#### Constraint dọc
+
+| Thuộc tính | Nghĩa |
+|-----------|-------|
+| `topToTopOf = "id"` | Cạnh trên của this = cạnh trên của target |
+| `topToBottomOf = "id"` | Cạnh trên của this = cạnh dưới của target |
+| `bottomToBottomOf = "id"` | Cạnh dưới của this = cạnh dưới của target |
+| `bottomToTopOf = "id"` | Cạnh dưới của this = cạnh trên của target |
+
+#### Margin & Bias
+
+```kotlin
+ConstraintChild(
+    id               = "btn",
+    node             = myNode,
+    startToStartOf   = PARENT,
+    endToEndOf       = PARENT,
+    topToTopOf       = PARENT,
+    bottomToBottomOf = PARENT,
+    horizontalBias   = 0.5f,   // 0f = hugged start, 1f = hugged end, 0.5f = center
+    verticalBias     = 0.5f,   // chỉ có hiệu lực khi CẢ 2 constraint cùng trục được set
+    marginStart      = 16.dp,
+    marginEnd        = 16.dp,
+    marginTop        = 8.dp,
+    marginBottom     = 8.dp,
+)
+```
+
+> 💡 Dùng `ConstraintNode.PARENT` (= `"parent"`) để trỏ đến container.
+
+**Thuật toán:** Iterative topological sort — mỗi vòng lặp giải những child mà tất cả target ID đã resolved. Worst case O(n²) với n children — phù hợp cho < 50 views trong 1 màn.
+
+**Hạn chế hiện tại:**
+- Không hỗ trợ chain (horizontal/vertical chain).
+- Không hỗ trợ Guideline / Barrier.
+- Chiều cao container = wrap-to-content (max bottom của children + padding).
+- Dependency cycle → child bị đặt tại (0, 0) làm fallback.
+
+---
+
+### 4.5 `EdgeInsets` — Padding/Margin
+
+```kotlin
+EdgeInsets.ZERO                                     // không padding
+EdgeInsets.all(16.dp)                               // 16dp mọi phía
+EdgeInsets.symmetric(h = 16.dp, v = 8.dp)          // 16dp ngang, 8dp dọc
+EdgeInsets(left = 8.dp, top = 4.dp,
+           right = 8.dp, bottom = 4.dp)             // custom từng phía
+```
+
+---
+
+## 5. Đo layout với LayoutEngine
+
+```kotlin
+// Bắt buộc gọi từ background thread
+val spec: DrawSpec = withContext(Dispatchers.Default) {
+    LayoutEngine.measure(
+        node        = myLayoutNode,
+        constraints = Constraints(maxWidth = containerWidthPx)
+    )
+}
+```
+
+> ✅ `LayoutEngine.measure()` không đụng bất kỳ UI thread API nào — an toàn hoàn toàn trên background thread.
+
+**Lấy `maxWidth`:**
+
+```kotlin
+// Cách 1: Width màn hình
+val widthPx = resources.displayMetrics.widthPixels
+
+// Cách 2: Width chính xác sau khi view đã layout
+binding.container.doOnPreDraw {
+    val widthPx = binding.container.width
+    viewModel.load(widthPx)
+}
+```
+
+**`Constraints`:**
+
+```kotlin
+Constraints(maxWidth = 800)                        // maxHeight = Int.MAX_VALUE (unbounded)
+Constraints(maxWidth = 400, maxHeight = 200)       // giới hạn cả 2 chiều
+```
+
+---
+
+## 6. Gắn vào View
+
+### 6.1 Khai báo XML
+
+```xml
+<com.simple.phonetics.ui.precompute.PrecomputedView
+    android:id="@+id/precomputedView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" />
+```
+
+> 💡 Nên dùng `layout_width="match_parent"` để view có width cố định, giúp `doOnPreDraw` lấy width chính xác.
+
+### 6.2 Gán spec
+
+```kotlin
+// Luôn gán trên UI thread
+binding.precomputedView.spec = drawSpec
+
+// Xoá (trả về kích thước 0x0)
+binding.precomputedView.spec = null
+```
+
+`PrecomputedView.spec` setter tự động xử lý:
+
+| Tình huống | Hành vi |
+|-----------|---------|
+| Kích thước thay đổi | `requestLayout()` → `invalidate()` |
+| Kích thước giữ nguyên | `postInvalidateOnAnimation()` |
+| View đang attached | `onDetachedFromWindow(old)` → `onAttachedToWindow(new)` |
+| Spec mới có `ImageSpec` async | Tự bắt đầu load bitmap qua `BitmapLoader` |
+
+---
+
+## 7. Luồng ViewModel → Fragment
+
+### ViewModel
+
+```kotlin
+class CardViewModel(private val appContext: Context) : ViewModel() {
+
+    private val _spec = MutableStateFlow<DrawSpec?>(null)
+    val spec: StateFlow<DrawSpec?> = _spec.asStateFlow()
+
+    fun loadCard(word: String, ipa: String, widthPx: Int) {
+        viewModelScope.launch {
+            // 1. Build node (bất kỳ thread nào — thuần data)
+            val node = buildCardNode(word, ipa)
+
+            // 2. Đo trên background thread
+            val result = withContext(Dispatchers.Default) {
+                LayoutEngine.measure(node, Constraints(widthPx))
+            }
+
+            // 3. Emit sang UI
+            _spec.value = result
+        }
+    }
+
+    // Nếu gọi nhiều lần liên tiếp — cancel job cũ để không emit kết quả cũ
+    private var measureJob: Job? = null
+
+    fun loadCardCancellable(word: String, ipa: String, widthPx: Int) {
+        measureJob?.cancel()
+        measureJob = viewModelScope.launch {
+            val node = buildCardNode(word, ipa)
+            _spec.value = withContext(Dispatchers.Default) {
+                LayoutEngine.measure(node, Constraints(widthPx))
+            }
+        }
+    }
+
+    private fun buildCardNode(word: String, ipa: String): LayoutNode = LinearNode(
+        orientation = Orientation.VERTICAL,
+        gap         = 4.dp,
+        children    = listOf(
+            TextNode(word, 18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+            TextNode(ipa,  14.sp, Color.GRAY)
+        )
+    )
+}
+```
+
+### Fragment
+
+```kotlin
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+
+    // Lấy width sau khi view đã layout để đảm bảo chính xác
+    binding.precomputedView.doOnPreDraw {
+        viewModel.loadCard("Hello", "/həˈloʊ/", binding.precomputedView.width)
+    }
+
+    // Collect spec và gán cho view
+    viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.spec.collect { spec ->
+                binding.precomputedView.spec = spec
+            }
+        }
+    }
 }
 ```
 
 ---
 
-## 8. Hạn chế & khi nào KHÔNG dùng
+## 8. Dùng trong RecyclerView
 
-- Caller phải **biết width trước**. Nếu width đến từ parent động (vd nested trong ConstraintLayout co giãn), pattern này không hợp.
-- Không hỗ trợ **wrap-content lan ngược**: View báo `(0, 0)` khi chưa có spec.
-- Không hỗ trợ animation per-frame (kích thước đổi liên tục → đo lại liên tục → đắt).
-- Hiện chưa có: **weight/flex**, **wrap line**, **background/border drawable**, **click hit-test**.
-- View nhỏ và đơn giản → overhead bg + sync còn đắt hơn measure thẳng. Chỉ dùng khi measure thực sự đắt (nhiều text, nhiều primitive).
+```kotlin
+class WordAdapter(
+    private val scope: CoroutineScope,
+    private val itemWidthPx: Int
+) : RecyclerView.Adapter<WordViewHolder>() {
+
+    var items: List<WordItem> = emptyList()
+        set(value) { field = value; notifyDataSetChanged() }
+
+    override fun onBindViewHolder(holder: WordViewHolder, position: Int) {
+        val item = items[position]
+
+        // 1. Cancel job đo của lần bind trước (tránh race condition khi scroll nhanh)
+        holder.measureJob?.cancel()
+        holder.binding.precomputedView.spec = null   // clear để tránh hiện nội dung cũ
+
+        // 2. Đo async
+        holder.measureJob = scope.launch {
+            val node = buildWordNode(item)
+            val spec = withContext(Dispatchers.Default) {
+                LayoutEngine.measure(node, Constraints(itemWidthPx))
+            }
+            // 3. Gán kết quả (launch đảm bảo luôn chạy trên Main)
+            holder.binding.precomputedView.spec = spec
+        }
+    }
+
+    override fun onViewRecycled(holder: WordViewHolder) {
+        super.onViewRecycled(holder)
+        holder.measureJob?.cancel()
+        holder.binding.precomputedView.spec = null
+    }
+
+    private fun buildWordNode(item: WordItem): LayoutNode = LinearNode(
+        orientation = Orientation.HORIZONTAL,
+        gap         = 8.dp,
+        crossAlign  = CrossAlign.CENTER,
+        children    = listOf(
+            ImageNode(ImageSource.ResSource(item.iconRes), 24.dp, 24.dp),
+            LinearNode(
+                orientation = Orientation.VERTICAL,
+                gap         = 2.dp,
+                children    = listOf(
+                    TextNode(item.word, 16.sp, Color.BLACK, maxLines = 1,
+                             typeface = Typeface.DEFAULT_BOLD),
+                    TextNode(item.ipa,  13.sp, Color.GRAY,  maxLines = 1)
+                )
+            )
+        ),
+        padding = EdgeInsets.symmetric(h = 16.dp, v = 12.dp)
+    )
+}
+
+class WordViewHolder(val binding: ItemWordBinding) : RecyclerView.ViewHolder(binding.root) {
+    var measureJob: Job? = null
+}
+```
 
 ---
 
-## 9. Hướng mở rộng (chưa làm)
+## 9. Ví dụ đầy đủ
+
+### Ví dụ 1: Profile Card (ConstraintNode)
+
+Avatar tròn bên trái, tên + email xếp dọc bên phải, nút action góc phải:
+
+```kotlin
+fun buildProfileCard(
+    context: Context,
+    name: String,
+    email: String,
+    avatarRes: Int,
+    widthPx: Int
+): LayoutNode {
+    val dm = context.resources.displayMetrics
+    fun Int.dp() = (this * dm.density).toInt()
+    fun Float.sp() = this * dm.scaledDensity
+    val PARENT = ConstraintNode.PARENT
+
+    return ConstraintNode(
+        padding  = EdgeInsets.all(16.dp()),
+        children = listOf(
+            // Avatar
+            ConstraintChild(
+                id             = "avatar",
+                node           = ImageNode(ImageSource.ResSource(avatarRes), 48.dp(), 48.dp()),
+                startToStartOf = PARENT,
+                topToTopOf     = PARENT,
+            ),
+            // Tên
+            ConstraintChild(
+                id           = "name",
+                node         = TextNode(
+                    text       = name,
+                    textSizePx = 16f.sp(),
+                    color      = 0xFF111827.toInt(),
+                    typeface   = Typeface.DEFAULT_BOLD,
+                    maxLines   = 1
+                ),
+                startToEndOf = "avatar", marginStart = 12.dp(),
+                endToEndOf   = PARENT,   marginEnd   = 0,
+                topToTopOf   = "avatar",
+                width        = ConstraintDim.MatchConstraint,
+            ),
+            // Email
+            ConstraintChild(
+                id             = "email",
+                node           = TextNode(
+                    text       = email,
+                    textSizePx = 13f.sp(),
+                    color      = 0xFF6B7280.toInt(),
+                    maxLines   = 1
+                ),
+                startToStartOf = "name",
+                endToEndOf     = "name",
+                topToBottomOf  = "name", marginTop = 2.dp(),
+                width          = ConstraintDim.MatchConstraint,
+            ),
+        )
+    )
+}
+
+// Trong ViewModel
+fun loadProfile(context: Context, widthPx: Int) {
+    viewModelScope.launch {
+        val node = buildProfileCard(context, "Nguyễn Văn A", "nva@example.com",
+                                    R.drawable.avatar, widthPx)
+        _spec.value = withContext(Dispatchers.Default) {
+            LayoutEngine.measure(node, Constraints(widthPx))
+        }
+    }
+}
+```
+
+---
+
+### Ví dụ 2: Chip icon + text (LinearNode)
+
+```kotlin
+fun buildChip(
+    bitmap: Bitmap,
+    label: String,
+    textSizePx: Float,
+    textColor: Int,
+    gapPx: Int,
+    paddingH: Int,
+    paddingV: Int
+): LinearNode = LinearNode(
+    orientation = Orientation.HORIZONTAL,
+    crossAlign  = CrossAlign.CENTER,
+    gap         = gapPx,
+    padding     = EdgeInsets.symmetric(h = paddingH, v = paddingV),
+    children    = listOf(
+        ImageNode.fromBitmap(bitmap, width = 20.dp, height = 20.dp),
+        TextNode(label, textSizePx, textColor, maxLines = 1)
+    )
+)
+```
+
+---
+
+### Ví dụ 3: Bài học phức tạp (Linear lồng nhau)
+
+```kotlin
+fun buildLessonCard(
+    wordBitmap: Bitmap,
+    word: String,
+    ipa: String,
+    definition: String,
+    textPrimary: Int,
+    textSecondary: Int,
+    textTertiary: Int,
+): LinearNode = LinearNode(
+    orientation = Orientation.HORIZONTAL,
+    crossAlign  = CrossAlign.CENTER,
+    gap         = 12.dp,
+    padding     = EdgeInsets.symmetric(h = 16.dp, v = 14.dp),
+    children    = listOf(
+        // Icon bên trái
+        ImageNode.fromBitmap(wordBitmap, width = 36.dp, height = 36.dp),
+        // Cột text bên phải
+        LinearNode(
+            orientation = Orientation.VERTICAL,
+            gap         = 2.dp,
+            children    = listOf(
+                TextNode(word,       16.sp, textPrimary,   maxLines = 1, typeface = Typeface.DEFAULT_BOLD),
+                TextNode(ipa,        13.sp, textSecondary, maxLines = 1),
+                TextNode(definition, 12.sp, textTertiary,  maxLines = 2),
+            )
+        )
+    )
+)
+```
+
+---
+
+## 10. Mở rộng thêm node mới
+
+Không cần sửa bất kỳ file nào của engine. Chỉ tạo 2 class:
+
+### Bước 1 — Tạo `LayoutNode` con
+
+```kotlin
+/**
+ * Node vẽ đường phân cách nằm ngang.
+ */
+data class DividerNode(
+    val color     : Int,
+    val thickness : Int = 1.dp,
+    override val padding: EdgeInsets = EdgeInsets.ZERO
+) : LayoutNode() {
+
+    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): DrawSpec {
+        val w = c.maxWidth
+        val h = thickness + padding.vertical
+        return DividerSpec(x, y, w, h, color, thickness, padding.top)
+    }
+}
+```
+
+### Bước 2 — Tạo `DrawSpec` con
+
+```kotlin
+class DividerSpec(
+    override val left      : Int,
+    override val top       : Int,
+    override val width     : Int,
+    override val height    : Int,
+    private  val color     : Int,
+    private  val thickness : Int,
+    private  val offsetTop : Int,
+) : DrawSpec() {
+
+    private val paint = Paint().apply { this.color = this@DividerSpec.color }
+    private val rect  = RectF()
+
+    override fun onDrawContent(canvas: Canvas) {
+        rect.set(0f, offsetTop.toFloat(), width.toFloat(), (offsetTop + thickness).toFloat())
+        canvas.drawRect(rect, paint)
+    }
+
+    override fun withPosition(newLeft: Int, newTop: Int) =
+        DividerSpec(newLeft, newTop, width, height, color, thickness, offsetTop)
+}
+```
+
+### Bước 3 — Dùng ngay (không sửa gì thêm)
+
+```kotlin
+LinearNode(
+    orientation = Orientation.VERTICAL,
+    gap         = 0,
+    children    = listOf(
+        TextNode("Tiêu đề",  18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+        DividerNode(color = 0xFFE5E7EB.toInt(), thickness = 1.dp),
+        TextNode("Nội dung", 14.sp, Color.DKGRAY),
+    )
+)
+```
+
+---
+
+## 11. Hạn chế & khi nào KHÔNG nên dùng
+
+| Tình huống | Giải pháp thay thế |
+|-----------|-------------------|
+| Width phụ thuộc parent động (ConstraintLayout co giãn) | XML View thông thường |
+| Kích thước đổi liên tục theo animation | Compose / Custom View + `onDraw` trực tiếp |
+| View nhỏ, đơn giản (1 text, 1 image) | `TextView` / `ImageView` thông thường — overhead bg còn đắt hơn |
+| Cần `weight` / flex | Chưa hỗ trợ — cần tự thêm vào `LinearNode` |
+| Cần wrap-line (text flow) | Chưa hỗ trợ — cần tạo `FlowNode` mới |
+| Cần click / hit-test | Chưa hỗ trợ — cần thêm `id` vào node và walk spec tree |
+| Cần background / border drawable | Chưa hỗ trợ — tạo `BoxNode` / `BorderSpec` |
+| `ConstraintNode` chain / Guideline / Barrier | Chưa hỗ trợ |
+
+> ⚠️ **Lưu ý:** `PrecomputedView` báo kích thước `(0, 0)` khi `spec == null`. Tránh đặt view này trong `wrap_content` parent khi chưa có spec — layout có thể bị sụp đến 0 chiều cao.
+
+---
+
+## 12. Hướng phát triển tiếp theo
 
 | Tính năng | Hướng làm |
 |-----------|----------|
-| Spec mới (Border, Divider, Path...) | Tạo class kế thừa `DrawSpec`, override `onDrawContent` + `withPosition`. |
-| Weight trong Linear | Thêm `weight: Float` vào `LayoutNode`, engine pass 2: chia phần dư theo weight. |
-| Wrap (auto xuống dòng) | `LayoutNode.Flow` — engine break khi cursor + childWidth > maxWidth. |
-| Cache | `LruCache<Key, DrawSpec>` với `Key = hash(node, width, fontScale, density)`. |
+| `Weight` trong `LinearNode` | Thêm `weight: Float` vào `LayoutNode`, engine pass 2 chia phần dư theo weight. |
+| Wrap-line (`FlowNode`) | Engine break khi `cursor + childWidth > maxWidth`, tạo hàng mới. |
+| LRU Cache | `LruCache<Key, DrawSpec>` với `Key = hash(node, width, fontScale, density)`. |
 | Hit-test (click) | Walk cây spec, check `(x, y)` rơi vào spec nào — gán `id` lên `LayoutNode` để map ngược. |
-| Background/border | `LayoutNode.Box(child, background, border, radius)` → `BorderSpec(child)`. |
-| Pre-measure ở Repository | Đo ngay khi data về từ DB, cache vào memory → bind view 0ms. |
+| Background / border | `LayoutNode.Box(child, background, border, radius)` → `BorderSpec(child)`. |
+| `ConstraintNode` chain | Tính tổng size của chain → chia đều theo số member. |
+| Pre-measure tại Repository | Đo ngay khi data về từ DB/network, cache vào memory → bind view ~0ms. |
 
 ---
 
-## 10. Tham chiếu
+## 13. Tham khảo nhanh
 
-- `PrecomputedText` / `PrecomputedTextCompat` (AndroidX): pattern tương tự cho text.
-- Compose `Measurable / Placeable`: tách rõ measure → place → draw.
-- Flutter `RenderObject.performLayout()` vs `paint()`.
-- Skia `DisplayList`: cùng tư tưởng — record lệnh vẽ trước, replay sau.
+```kotlin
+// ── Extension helper (định nghĩa trong project) ──────────────────────────────
+val Int.dp: Int     get() = (this * Resources.getSystem().displayMetrics.density).toInt()
+val Float.sp: Float get() = this * Resources.getSystem().displayMetrics.scaledDensity
+val Int.sp: Float   get() = this.toFloat().sp
+
+// ── Tạo node ─────────────────────────────────────────────────────────────────
+val text  = TextNode("Hello", 16.sp, Color.BLACK)
+val image = ImageNode.fromBitmap(bmp, 48.dp, 48.dp)
+val icon  = ImageNode(ImageSource.ResSource(R.drawable.ic_star), 24.dp, 24.dp)
+val row   = LinearNode(Orientation.HORIZONTAL, listOf(icon, text), gap = 8.dp,
+                       crossAlign = CrossAlign.CENTER)
+
+// ── Đo (background thread) ───────────────────────────────────────────────────
+val spec: DrawSpec = withContext(Dispatchers.Default) {
+    LayoutEngine.measure(row, Constraints(containerWidthPx))
+}
+
+// ── Gán cho view (UI thread) ─────────────────────────────────────────────────
+precomputedView.spec = spec       // auto requestLayout + invalidate
+
+// ── BitmapLoader (Application.onCreate) ─────────────────────────────────────
+BitmapLoader.install(GlideBitmapLoader(this))
+
+// ── EdgeInsets shortcuts ─────────────────────────────────────────────────────
+EdgeInsets.ZERO                         // không padding
+EdgeInsets.all(16.dp)                   // mọi phía
+EdgeInsets.symmetric(h = 16.dp, v = 8.dp)
+
+// ── ConstraintDim ─────────────────────────────────────────────────────────────
+ConstraintDim.WrapContent               // mặc định
+ConstraintDim.MatchConstraint           // fill khoảng giữa 2 anchor
+ConstraintDim.Fixed(64.dp)             // cố định px
+
+// ── CrossAlign ────────────────────────────────────────────────────────────────
+CrossAlign.START   // căn đầu (top hoặc left)
+CrossAlign.CENTER  // căn giữa
+CrossAlign.END     // căn cuối (bottom hoặc right)
+```
+
+---
+
+*Tài liệu này mô tả trạng thái hiện tại của `node-engine`. Các tính năng chưa có (weight, hit-test, border...) được ghi rõ trong [Mục 12](#12-hướng-phát-triển-tiếp-theo).*

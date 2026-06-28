@@ -1,4 +1,4 @@
-package com.simple.phonetics.ui.precompute
+package com.simple.ui.precompute
 
 import android.graphics.Canvas
 import android.view.View

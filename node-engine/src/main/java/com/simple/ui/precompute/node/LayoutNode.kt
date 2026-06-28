@@ -1,7 +1,7 @@
-package com.simple.phonetics.ui.precompute.node
+package com.simple.ui.precompute.node
 
-import com.simple.phonetics.ui.precompute.DrawSpec
-import com.simple.phonetics.ui.precompute.MeasureContext
+import com.simple.ui.precompute.DrawSpec
+import com.simple.ui.precompute.MeasureContext
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared types dùng chung cho toàn bộ engine.
@@ -48,7 +48,7 @@ enum class CrossAlign { START, CENTER, END }
  * Pre-load Bitmap / resolve color / resolve typeface BEFORE building.
  *
  * **Mở rộng**: thêm 1 loại node mới = tạo class kế thừa [LayoutNode] + 1 class
- * kế thừa [com.simple.phonetics.ui.precompute.DrawSpec], implement [measure]. Không cần đụng [com.simple.phonetics.ui.precompute.LayoutEngine] hay
+ * kế thừa [com.simple.ui.precompute.DrawSpec], implement [measure]. Không cần đụng [com.simple.ui.precompute.LayoutEngine] hay
  * các node có sẵn.
  */
 abstract class LayoutNode {
@@ -56,7 +56,7 @@ abstract class LayoutNode {
     abstract val padding: EdgeInsets
 
     /**
-     * Tự đo và trả về [com.simple.phonetics.ui.precompute.DrawSpec] tại vị trí ([x], [y]).
+     * Tự đo và trả về [com.simple.ui.precompute.DrawSpec] tại vị trí ([x], [y]).
      * Dùng [ctx] để đệ quy đo các child nếu là node container.
      */
     abstract fun measure(
