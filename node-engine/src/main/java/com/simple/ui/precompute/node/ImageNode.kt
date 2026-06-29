@@ -2,7 +2,6 @@ package com.simple.ui.precompute.node
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
@@ -127,7 +126,11 @@ class ImageSpec(
         // Đã có ảnh từ lần load trước thì không cần load lại.
         if (drawable != null) return
         val loader = ImageLoader.get() ?: return
-        loader.load(this) { view.postInvalidateOnAnimation() }
+        // Dispatch off-main: tất cả setup (build RequestBuilder, resolve
+        // transforms, lookup RequestManager...) chạy ở bg thread của loader.
+        loader.dispatcher.execute {
+            loader.load(this) { view.postInvalidateOnAnimation() }
+        }
     }
 
     override fun onDetachedFromWindow(view: View) {
@@ -135,19 +138,16 @@ class ImageSpec(
         drawable?.callback = null
         (drawable as? Animatable)?.stop()
 
-        ImageLoader.get()?.cancel(this)
+        val loader = ImageLoader.get() ?: return
+        // Cancel cũng dispatch cùng executor → đảm bảo chạy sau load đã
+        // queue cho cùng spec, không drop frame ở main.
+        loader.dispatcher.execute { loader.cancel(this) }
     }
 
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
         ImageSpec(newLeft, newTop, width, height, source, dst).also {
             it.drawable = drawable
         }
-
-    companion object {
-        // Shared paint if needed for other places, but Drawables usually handle their own paint
-        private val SHARED_PAINT =
-            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    }
 
     private fun Drawable.centerInside(container: Rect): Rect {
         val containerW = container.width()

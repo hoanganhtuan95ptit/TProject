@@ -10,12 +10,17 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.simple.launcher.retirement.utils.image.RichImage
+import com.simple.launcher.retirement.utils.image.addTransform
+import com.simple.launcher.retirement.utils.image.build
+import com.simple.launcher.retirement.utils.image.toBuilder
 import com.simple.launcher.retirement.utils.text.ForegroundColor
 import com.simple.launcher.retirement.utils.text.RichText
 import com.simple.launcher.retirement.utils.text.TextSize
 import com.simple.launcher.retirement.utils.text.build
 import com.simple.launcher.retirement.utils.text.with
 import com.simple.t.R
+import com.simple.ui.precompute.image.CircleCrop
+import com.simple.ui.precompute.image.RoundedCorners
 import com.simple.ui.precompute.node.ConstraintChild
 import com.simple.ui.precompute.node.ConstraintNode
 import com.simple.ui.precompute.node.Constraints
@@ -163,9 +168,23 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, outlineSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 6 — ImageNode + RichTransform (CircleCrop / RoundedCorners)
+            //   Cùng 1 nguồn ảnh, 3 cách biến đổi khác nhau xếp ngang.
+            //   Engine không biết Glide — transforms được resolve ở loader.
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑥ ImageNode  —  Glide transform (Circle / Rounded)")
+
+            val transformSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildTransformCard(dp48), Constraints(cardWidth))
+                )
+            }
+            addCards(container, transformSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2 + profiles.size + 3} cards — LinearNode + ConstraintNode + OutlineNode, measured on bg thread"
+                text = "${items.size * 2 + profiles.size + 4} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -517,6 +536,69 @@ class MainActivity : AppCompatActivity() {
             )
         )
     )
+
+    /**
+     * **ImageNode + RichTransform** card.
+     *
+     * Cùng `R.mipmap.ic_launcher` nhưng 3 cách biến đổi khác nhau, xếp ngang:
+     *  ① không transform → ảnh nguyên dạng.
+     *  ② [CircleCrop]    → crop tròn (avatar).
+     *  ③ [RoundedCorners]→ bo góc theo bán kính.
+     *
+     * Engine vẫn đo từng [ImageNode] với `Fixed(iconSizePx)` ở background.
+     * Lúc attach view, `GlideImageLoader` đọc `RichImage.transforms` rồi
+     * dịch sang `Transformation<Bitmap>` của Glide qua `RichTransformConverters`.
+     */
+    private fun buildTransformCard(iconSizePx: Int): LayoutNode {
+        val baseSource = R.mipmap.ic_launcher
+        val rounded = dp(12)
+
+        fun item(label: String, image: RichImage) = LinearNode(
+            orientation = Orientation.VERTICAL,
+            crossAlign = CrossAlign.CENTER,
+            gap = dp(6),
+            children = listOf(
+                ImageNode(
+                    source = image,
+                    layoutWidth = LayoutDimension.Fixed(iconSizePx),
+                    layoutHeight = LayoutDimension.Fixed(iconSizePx),
+                ),
+                TextNode(
+                    text = RichText(label),
+                    textSizePx = sp(11f),
+                    color = Color.DKGRAY,
+                    typeface = Typeface.DEFAULT_BOLD,
+                    maxLines = 1,
+                ),
+            )
+        )
+
+        return LinearNode(
+            orientation = Orientation.HORIZONTAL,
+            crossAlign = CrossAlign.CENTER,
+            gap = dp(20),
+            padding = EdgeInsets.all(dp(16)),
+            children = listOf(
+                item(
+                    label = "Original",
+                    image = RichImage(source = baseSource),
+                ),
+                item(
+                    label = "CircleCrop",
+                    image = RichImage(
+                        source = baseSource,
+                        transforms = listOf(CircleCrop),
+                    ),
+                ),
+                item(
+                    label = "Rounded ${rounded}px",
+                    image = R.drawable.img1.toBuilder()
+                        .addTransform(RoundedCorners(rounded))
+                        .build(),
+                ),
+            )
+        )
+    }
 
     /**
      * **OutlineNode** loading card — effect là sibling phủ lên content.

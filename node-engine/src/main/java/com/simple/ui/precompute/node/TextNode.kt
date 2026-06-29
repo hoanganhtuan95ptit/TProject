@@ -1,6 +1,5 @@
 package com.simple.ui.precompute.node
 
-import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -35,7 +34,13 @@ data class TextNode(
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
-    val textPaintDensity: Float = Resources.getSystem().displayMetrics.density
+    /**
+     * Density truyền vào [TextPaint.density] — phải resolve sẵn từ caller
+     * (vd `resources.displayMetrics.density`). `null` = giữ density mặc định
+     * của [TextPaint], không đụng [android.content.res.Resources]; engine
+     * tuân quy ước "không touch Context/Resources".
+     */
+    val textPaintDensity: Float? = null
 ) : LayoutNode() {
 
     override fun measure(
@@ -51,7 +56,7 @@ data class TextNode(
 
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = textSizePx
-            density = textPaintDensity
+            this@TextNode.textPaintDensity?.let { density = it }
             color = this@TextNode.color
             this@TextNode.typeface?.let { typeface = it }
         }

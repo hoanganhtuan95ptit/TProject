@@ -5,6 +5,7 @@ import android.text.SpannableString
 import android.text.style.CharacterStyle
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
+import java.util.concurrent.ConcurrentHashMap
 
 private val builtInRichSpanConvertList by lazy {
     listOf(
@@ -31,22 +32,38 @@ private fun loadServiceRichSpanConverters(): List<RichSpanConvert> {
 }
 
 // Cache KClass → RichSpanConvert: lần đầu O(n) scan, từ lần 2 trở đi O(1).
-// Chạy trên main thread nên HashMap thường là đủ.
-private val richSpanConvertCache = HashMap<kotlin.reflect.KClass<out RichSpan>, RichSpanConvert>()
+// RichText có thể được build từ bất kỳ thread nào (kể cả Dispatchers.Default
+// trước khi gắn vào view), nên dùng ConcurrentHashMap để an toàn.
+private val richSpanConvertCache =
+    ConcurrentHashMap<kotlin.reflect.KClass<out RichSpan>, RichSpanConvert>()
 
 data class RichText(
     val text: String,
     val spans: ArrayList<RichStyle> = arrayListOf()
 ) {
 
-    var textChar: CharSequence = text
+    // Lazy: nếu không ai đọc textChar (vd RichText chỉ tạm để equals/copy)
+    // thì khỏi đo spannable. Khi đo trên bg thread, lần truy cập đầu tiên sẽ
+    // chạy refresh() — vẫn off main thread. @Volatile để publish an toàn
+    // qua thread boundary.
+    @Volatile
+    private var _textChar: CharSequence? = null
 
-    init {
-        if (spans.isNotEmpty()) refresh()
-    }
+    var textChar: CharSequence
+        get() = _textChar ?: synchronized(this) {
+            _textChar ?: buildTextChar().also { _textChar = it }
+        }
+        set(value) {
+            _textChar = value
+        }
 
     fun refresh(): RichText {
+        synchronized(this) { _textChar = buildTextChar() }
+        return this
+    }
 
+    private fun buildTextChar(): CharSequence {
+        if (spans.isEmpty()) return text
         val spannable = SpannableString(text)
         spans.forEach { span ->
             span.styles.forEach { styleData ->
@@ -54,9 +71,7 @@ data class RichText(
                 spannable.setSpan(style, span.range.start, span.range.end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
-        textChar = spannable
-
-        return this
+        return spannable
     }
 
     private fun RichSpan.toAndroidSpan(): CharacterStyle {
@@ -64,13 +79,13 @@ data class RichText(
         val cached = richSpanConvertCache[klass]
         if (cached != null) {
             cached.getAndroidSpan(this)?.let { return it }
-            richSpanConvertCache.remove(klass)
+            richSpanConvertCache.remove(klass, cached)
         }
 
         for (converter in richSpanConvertList) {
             val span = converter.getAndroidSpan(this)
             if (span != null) {
-                richSpanConvertCache[klass] = converter
+                richSpanConvertCache.putIfAbsent(klass, converter)
                 return span
             }
         }

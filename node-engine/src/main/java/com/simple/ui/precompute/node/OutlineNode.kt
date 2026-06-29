@@ -138,7 +138,14 @@ class OutlineSpec(
 
     var loadingDurationMs: Long = loadingDurationMs.coerceAtLeast(50L)
         set(value) {
-            field = value.coerceAtLeast(50L)
+            val coerced = value.coerceAtLeast(50L)
+            if (field == coerced) return
+            field = coerced
+            // Re-create animator so the new duration takes effect immediately.
+            if (animator != null) {
+                stopAnimating()
+                startAnimating()
+            }
         }
 
     var state: OutlineState = state
@@ -329,7 +336,7 @@ class OutlineSpec(
         if (attachedView == null || animator != null) return
         lastFrameMs = SystemClock.elapsedRealtime()
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1000L
+            duration = loadingDurationMs
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
             addUpdateListener { onFrame() }
