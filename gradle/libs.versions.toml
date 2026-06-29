@@ -10,6 +10,7 @@ lifecycleViewmodel = "2.9.1"
 coroutines = "1.10.2"
 constraintlayout = "2.2.1"
 glide = "4.16.0"
+autoService = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -22,8 +23,9 @@ androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+google-auto-service = { group = "com.google.auto.service", name = "auto-service", version.ref = "autoService" }
+google-auto-service-annotations = { group = "com.google.auto.service", name = "auto-service-annotations", version.ref = "autoService" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-

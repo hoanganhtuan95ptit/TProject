@@ -45,6 +45,20 @@ abstract class DrawSpec {
     /** Trả về copy với (left, top) mới — phục vụ layout engine khi assign vị trí. */
     abstract fun withPosition(newLeft: Int, newTop: Int): DrawSpec
 
+    /**
+     * Trả về copy với kích thước mới. Mặc định bọc spec hiện tại trong một
+     * measured box; spec nào phụ thuộc trực tiếp vào bounds có thể override.
+     */
+    open fun withSize(newWidth: Int, newHeight: Int): DrawSpec {
+        val w = newWidth.coerceAtLeast(0)
+        val h = newHeight.coerceAtLeast(0)
+        return if (width == w && height == h) {
+            this
+        } else {
+            SizedSpec(left, top, w, h, withPosition(0, 0))
+        }
+    }
+
     open fun onAttachedToWindow(view: View) {}
 
     open fun onDetachedFromWindow(view: View) {}
@@ -69,6 +83,12 @@ internal data class SizedSpec(
 
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
         copy(left = newLeft, top = newTop)
+
+    override fun withSize(newWidth: Int, newHeight: Int): DrawSpec {
+        val w = newWidth.coerceAtLeast(0)
+        val h = newHeight.coerceAtLeast(0)
+        return if (width == w && height == h) this else copy(width = w, height = h)
+    }
 
     override fun onAttachedToWindow(view: View) {
         child.onAttachedToWindow(view)

@@ -10,7 +10,6 @@ import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
 import com.simple.ui.precompute.node.ImageNode
-import com.simple.ui.precompute.node.ImageSource
 import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
 import com.simple.ui.precompute.node.LinearNode
@@ -59,7 +58,7 @@ object Example {
             padding = EdgeInsets.all(dp12),
             children = listOf(
                 ImageNode(
-                    source = ImageSource.ResSource(iconResId),
+                    source = RichImage.ResSource(iconResId),
                     layoutWidth = LayoutDimension.Fixed(dp48),
                     layoutHeight = LayoutDimension.Fixed(dp48)
                 ),
@@ -68,14 +67,14 @@ object Example {
                     gap = dp8 / 2,
                     children = listOf(
                         TextNode(
-                            text = word,
+                            text = RichText(word),
                             textSizePx = sp16,
                             color = Color.BLACK,
                             typeface = Typeface.DEFAULT_BOLD,
                             maxLines = 1
                         ),
                         TextNode(
-                            text = ipa,
+                            text = RichText(ipa),
                             textSizePx = sp14,
                             color = Color.DKGRAY,
                             maxLines = 1

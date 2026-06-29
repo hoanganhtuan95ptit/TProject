@@ -2,7 +2,6 @@ package com.simple.ui.precompute.node
 
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
-import com.simple.ui.precompute.SizedSpec
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConstraintChild — mô tả 1 child với các constraint liên kết.
@@ -81,14 +80,14 @@ data class ConstraintChild(
  *     children = listOf(
  *         ConstraintChild(
  *             id = "title",
- *             node = TextNode("Hello", sp18, Color.BLACK),
+ *             node = TextNode(RichText("Hello"), sp18, Color.BLACK),
  *             startToStartOf = PARENT, endToEndOf = PARENT,
  *             topToTopOf = PARENT, marginTop = dp16,
  *             width = LayoutDimension.MatchParent,
  *         ),
  *         ConstraintChild(
  *             id = "subtitle",
- *             node = TextNode("World", sp14, Color.GRAY),
+ *             node = TextNode(RichText("World"), sp14, Color.GRAY),
  *             startToStartOf = "title",
  *             topToBottomOf = "title", marginTop = dp8,
  *         ),
@@ -301,10 +300,4 @@ data class ConstraintNode(
         }.coerceAtLeast(0)
     }
 
-    private fun DrawSpec.withSize(width: Int, height: Int): DrawSpec =
-        if (this.width == width && this.height == height) {
-            this
-        } else {
-            SizedSpec(0, 0, width.coerceAtLeast(0), height.coerceAtLeast(0), withPosition(0, 0))
-        }
 }

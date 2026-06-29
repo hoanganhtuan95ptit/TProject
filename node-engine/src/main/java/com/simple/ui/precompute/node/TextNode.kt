@@ -1,5 +1,6 @@
 package com.simple.ui.precompute.node
 
+import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -7,6 +8,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
+import com.simple.launcher.retirement.utils.text.RichText
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
 import kotlin.math.ceil
@@ -23,7 +25,7 @@ import kotlin.math.ceil
  * typeface đã load) — engine không được đụng Context.
  */
 data class TextNode(
-    val text: CharSequence,
+    val text: RichText,
     val textSizePx: Float,
     val color: Int,
     val maxLines: Int = Int.MAX_VALUE,
@@ -32,7 +34,8 @@ data class TextNode(
     val lineSpacingAdd: Float = 0f,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
-    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
+    override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
+    val textPaintDensity: Float = Resources.getSystem().displayMetrics.density
 ) : LayoutNode() {
 
     override fun measure(
@@ -44,15 +47,17 @@ data class TextNode(
         val p = padding
         val measureWidth = layoutWidth.maxForMeasure(c.maxWidth)
         val innerWidth = (measureWidth - p.horizontal).coerceAtLeast(0)
+        val textChar = text.textChar
 
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = textSizePx
+            density = textPaintDensity
             color = this@TextNode.color
             this@TextNode.typeface?.let { typeface = it }
         }
 
         val layout = StaticLayout.Builder
-            .obtain(text, 0, text.length, paint, innerWidth)
+            .obtain(textChar, 0, textChar.length, paint, innerWidth)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(lineSpacingAdd, lineSpacingMul)
             .setMaxLines(maxLines)

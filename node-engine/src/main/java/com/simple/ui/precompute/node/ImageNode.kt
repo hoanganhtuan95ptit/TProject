@@ -1,56 +1,35 @@
 package com.simple.ui.precompute.node
 
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.view.View
-import androidx.annotation.DrawableRes
+import com.simple.launcher.retirement.utils.image.RichImage
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.ImageLoader
 import com.simple.ui.precompute.MeasureContext
+import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ImageSource — nguồn ảnh (sealed, immutable, thread-safe).
+// RichImage   — nguồn ảnh (sealed, immutable, thread-safe).
 // ImageNode   — mô tả một ảnh cần layout.
 // ImageSpec   — kết quả sau khi đo; load ảnh async qua ImageLoader.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Nguồn ảnh cho [ImageNode].
- *
- * - [BitmapSource] đã có sẵn bitmap → vẽ ngay, không cần loader.
- * - Các source còn lại cần [com.simple.ui.precompute.ImageLoader] load async ở runtime;
- *   trước khi bitmap về, [ImageSpec] sẽ chiếm chỗ trống đúng kích thước.
- *
- * Tất cả source đều immutable & thread-safe để pass qua background thread.
- * Riêng [DrawableSource] giữ reference Drawable — chỉ dùng nếu chắc chắn
- * drawable đó không bị mutate ngoài luồng (Glide sẽ rasterize hộ).
- */
-sealed class ImageSource {
-    data class BitmapSource(val bitmap: Bitmap) : ImageSource()
-    data class ResSource(@param:DrawableRes val resId: Int) : ImageSource()
-    /** Đường dẫn file trên thiết bị (absolute path). */
-    data class PathSource(val path: String) : ImageSource()
-    data class UrlSource(val url: String) : ImageSource()
-    data class DrawableSource(val drawable: Drawable) : ImageSource()
-}
-
-/**
  * Mô tả một ảnh cần layout.
  *
- * - Với [ImageSource.BitmapSource] hoặc [ImageSource.DrawableSource] có intrinsic
+ * - Với [RichImage.BitmapSource] hoặc [RichImage.DrawableSource] có intrinsic
  *   size, [LayoutDimension.WrapContent] sẽ lấy theo kích thước ảnh.
  * - Với các source async (Res/Path/Url/Drawable), cần có kích thước trước khi
  *   bitmap về: đặt [layoutWidth]/[layoutHeight] thành [LayoutDimension.Fixed]
  *   hoặc bounded [LayoutDimension.MatchParent].
  */
 data class ImageNode(
-    val source: ImageSource,
+    val source: RichImage,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
     override val padding: EdgeInsets = EdgeInsets.ZERO
@@ -63,23 +42,11 @@ data class ImageNode(
         y: Int
     ): ImageSpec {
         val p = padding
-        val bitmap = (source as? ImageSource.BitmapSource)?.bitmap
-        val drawable = (source as? ImageSource.DrawableSource)?.drawable
 
-        val rawW = bitmap?.width
-            ?: drawable?.intrinsicWidth?.takeIf { it > 0 }
-            ?: layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
+        val rawW = layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
             ?: 0
-        val rawH = bitmap?.height
-            ?: drawable?.intrinsicHeight?.takeIf { it > 0 }
-            ?: layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
+        val rawH = layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
             ?: 0
-
-        if (source !is ImageSource.BitmapSource && (rawW <= 0 || rawH <= 0)) {
-            throw IllegalArgumentException(
-                "ImageSource async requires fixed/bounded layoutWidth/layoutHeight: $source"
-            )
-        }
 
         val w = layoutWidth.resolve(rawW + p.horizontal, c.maxWidth)
         val h = layoutHeight.resolve(rawH + p.vertical, c.maxHeight)
@@ -87,23 +54,7 @@ data class ImageNode(
         val dstH = (h - p.vertical).coerceAtLeast(0)
 
         val dst = Rect(p.left, p.top, p.left + dstW, p.top + dstH)
-        return ImageSpec(x, y, w, h, source, dst).apply {
-            this.drawable = when (source) {
-                is ImageSource.BitmapSource -> BitmapDrawable(Resources.getSystem(), source.bitmap)
-                is ImageSource.DrawableSource -> source.drawable
-                else -> null
-            }
-        }
-    }
-
-    companion object {
-        /** Tiện ích: tạo ImageNode từ Bitmap có sẵn. */
-        fun fromBitmap(
-            bitmap: Bitmap,
-            layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
-            layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
-            padding: EdgeInsets = EdgeInsets.ZERO
-        ) = ImageNode(ImageSource.BitmapSource(bitmap), layoutWidth, layoutHeight, padding)
+        return ImageSpec(x, y, w, h, source, dst)
     }
 
     private fun LayoutDimension.contentSizeFrom(parentMax: Int, padding: Int): Int? =
@@ -122,8 +73,8 @@ data class ImageNode(
  * Không phải data class vì [bitmap] có thể được loader cập nhật
  * sau khi spec đã measure xong (cho UrlSource / ResSource / ...).
  *
- * - Nếu source là [ImageSource.BitmapSource]: [drawable] sẽ là `BitmapDrawable` và có ngay từ đầu.
- * - Nếu source là [ImageSource.DrawableSource]: [drawable] có ngay từ đầu.
+ * - Nếu source là [RichImage.BitmapSource]: [drawable] sẽ là `BitmapDrawable` và có ngay từ đầu.
+ * - Nếu source là [RichImage.DrawableSource]: [drawable] có ngay từ đầu.
  * - Ngược lại: [drawable] có thể null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter;
  *   trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
  */
@@ -132,16 +83,19 @@ class ImageSpec(
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val source: ImageSource,
+    val source: RichImage,
     val dst: Rect
 ) : DrawSpec() {
 
     @Volatile
     var drawable: Drawable? = null
         set(value) {
-            field = value
-            if (attachedView != null) {
-                value?.callback = callback
+            field?.callback = null
+            field = value?.apply {
+                bounds = centerInside(dst)
+                if (attachedView != null) {
+                    callback = this@ImageSpec.callback
+                }
             }
         }
 
@@ -163,10 +117,7 @@ class ImageSpec(
     }
 
     override fun onDrawContent(canvas: Canvas) {
-        drawable?.let {
-            it.bounds = dst
-            it.draw(canvas)
-        }
+        drawable?.draw(canvas)
     }
 
     override fun onAttachedToWindow(view: View) {
@@ -197,5 +148,32 @@ class ImageSpec(
         // Shared paint if needed for other places, but Drawables usually handle their own paint
         private val SHARED_PAINT =
             Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    }
+
+    private fun Drawable.centerInside(container: Rect): Rect {
+        val containerW = container.width()
+        val containerH = container.height()
+        val sourceW = intrinsicWidth
+        val sourceH = intrinsicHeight
+
+        if (containerW <= 0 || containerH <= 0) {
+            return Rect(container.left, container.top, container.left, container.top)
+        }
+
+        if (sourceW <= 0 || sourceH <= 0) {
+            return Rect(container)
+        }
+
+        val scale = minOf(
+            1f,
+            containerW.toFloat() / sourceW.toFloat(),
+            containerH.toFloat() / sourceH.toFloat()
+        )
+        val drawW = (sourceW * scale).roundToInt().coerceIn(1, containerW)
+        val drawH = (sourceH * scale).roundToInt().coerceIn(1, containerH)
+        val left = container.left + (containerW - drawW) / 2
+        val top = container.top + (containerH - drawH) / 2
+
+        return Rect(left, top, left + drawW, top + drawH)
     }
 }

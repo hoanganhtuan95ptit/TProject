@@ -9,6 +9,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.simple.launcher.retirement.utils.image.RichImage
+import com.simple.launcher.retirement.utils.text.ForegroundColor
+import com.simple.launcher.retirement.utils.text.RichText
+import com.simple.launcher.retirement.utils.text.TextSize
+import com.simple.launcher.retirement.utils.text.with
 import com.simple.t.R
 import com.simple.ui.precompute.node.ConstraintChild
 import com.simple.ui.precompute.node.ConstraintNode
@@ -16,11 +21,12 @@ import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
 import com.simple.ui.precompute.node.ImageNode
-import com.simple.ui.precompute.node.ImageSource
 import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
 import com.simple.ui.precompute.node.LinearNode
 import com.simple.ui.precompute.node.Orientation
+import com.simple.ui.precompute.node.OutlineNode
+import com.simple.ui.precompute.node.OutlineState
 import com.simple.ui.precompute.node.TextNode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val dp48 = (48 * dp).toInt()
-        val iconSource = ImageSource.ResSource(R.mipmap.ic_launcher)
+        val iconSource = RichImage.ResSource(R.mipmap.ic_launcher)
 
         ImageLoader.install(GlideImageLoader(this))
 
@@ -144,9 +150,21 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, wrapContentSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 5 — OutlineNode: dashed rounded loading outline
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑤ OutlineNode  —  viền loading bo góc")
+
+//            val outlineSpecs = withContext(Dispatchers.Default) {
+//                listOf(
+//                    LayoutEngine.measure(buildLoadingOutlineCard(), Constraints(cardWidth))
+//                )
+//            }
+//            addCards(container, outlineSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2 + profiles.size + 2} cards — LinearNode + ConstraintNode, measured on bg thread"
+                text = "${items.size * 2 + profiles.size + 3} cards — LinearNode + ConstraintNode + OutlineNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -205,7 +223,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: ImageSource,
+        iconSource: RichImage<*>,
         iconSizePx: Int,
     ): LayoutNode = LinearNode(
         orientation = Orientation.HORIZONTAL,
@@ -222,9 +240,9 @@ class MainActivity : AppCompatActivity() {
                 orientation = Orientation.VERTICAL,
                 gap = dp(4),
                 children = listOf(
-                    TextNode(word, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
-                    TextNode(ipa, sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
-                    TextNode(meaning, sp(12f), Color.GRAY, maxLines = 2),
+                    TextNode(RichText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                    TextNode(RichText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                    TextNode(RichText(meaning), sp(12f), Color.GRAY, maxLines = 2),
                 )
             )
         )
@@ -252,7 +270,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: ImageSource,
+        iconSource: RichImage<*>,
         iconSizePx: Int,
     ): LayoutNode = ConstraintNode(
         padding = EdgeInsets.all(dp(12)),
@@ -274,7 +292,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "badge",
                 node = TextNode(
-                    text = "EN",
+                    text = RichText("EN"),
                     textSizePx = sp(10f),
                     color = 0xFF6200EE.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -287,7 +305,7 @@ class MainActivity : AppCompatActivity() {
             // ③ Title — nằm giữa icon (start) và badge (end), fill hết chiều rộng
             ConstraintChild(
                 id = "title",
-                node = TextNode(word, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                node = TextNode(RichText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
                 startToEndOf = "icon", marginStart = dp(12),
                 endToStartOf = "badge", marginEnd = dp(8),
                 topToTopOf = ConstraintNode.PARENT,
@@ -297,7 +315,7 @@ class MainActivity : AppCompatActivity() {
             // ④ IPA — ngay bên dưới title, căn trái/phải theo title
             ConstraintChild(
                 id = "ipa",
-                node = TextNode(ipa, sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                node = TextNode(RichText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
                 startToStartOf = "title",
                 endToEndOf = "title",
                 topToBottomOf = "title", marginTop = dp(4),
@@ -307,7 +325,7 @@ class MainActivity : AppCompatActivity() {
             // ⑤ Meaning — ngay bên dưới ipa, căn trái/phải theo ipa
             ConstraintChild(
                 id = "meaning",
-                node = TextNode(meaning, sp(12f), Color.GRAY, maxLines = 2),
+                node = TextNode(RichText(meaning), sp(12f), Color.GRAY, maxLines = 2),
                 startToStartOf = "ipa",
                 endToEndOf = "ipa",
                 topToBottomOf = "ipa", marginTop = dp(4),
@@ -338,7 +356,7 @@ class MainActivity : AppCompatActivity() {
         name: String,
         tag: String,
         role: String,
-        avatarSource: ImageSource,
+        avatarSource: RichImage,
         avatarSizePx: Int,
     ): LayoutNode = ConstraintNode(
         padding = EdgeInsets(left = dp(12), top = dp(12), right = dp(12), bottom = dp(12)),
@@ -359,7 +377,7 @@ class MainActivity : AppCompatActivity() {
             // ② Name — start leo vào END của avatar, top leo vào TOP của PARENT
             ConstraintChild(
                 id = "name",
-                node = TextNode(name, sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
+                node = TextNode(RichText(name), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
@@ -371,7 +389,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "tag",
                 node = TextNode(
-                    text = tag,
+                    text = RichText(tag),
                     textSizePx = sp(11f),
                     color = 0xFFFFFFFF.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -385,7 +403,7 @@ class MainActivity : AppCompatActivity() {
             //   → phụ thuộc tag: resolve ở pass 3
             ConstraintChild(
                 id = "role",
-                node = TextNode(role, sp(11f), Color.DKGRAY, maxLines = 1),
+                node = TextNode(RichText(role), sp(11f), Color.DKGRAY, maxLines = 1),
                 startToEndOf = "tag", marginStart = dp(6),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = "tag",
@@ -396,7 +414,7 @@ class MainActivity : AppCompatActivity() {
             //   → phụ thuộc role: resolve ở pass 4
             ConstraintChild(
                 id = "bio",
-                node = TextNode("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)", sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
+                node = TextNode(RichText("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)"), sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToBottomOf = "role", marginTop = dp(4),
@@ -407,7 +425,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_like",
                 node = TextNode(
-                    text = "♥  Like",
+                    text = RichText("♥  Like"),
                     textSizePx = sp(12f),
                     color = 0xFFFFFFFF.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -422,7 +440,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_share",
                 node = TextNode(
-                    text = "↗  Share",
+                    text = RichText("↗  Share"),
                     textSizePx = sp(12f),
                     color = 0xFF6200EE.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -451,19 +469,19 @@ class MainActivity : AppCompatActivity() {
         children = listOf(
             ConstraintChild(
                 id = "tag_1",
-                node = TextNode("Kotlin", sp(14f), 0xFFE91E63.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode("Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)), sp(1f), 0xFFE91E63.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
                 startToStartOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
             ),
             ConstraintChild(
                 id = "tag_2",
-                node = TextNode("Android", sp(14f), 0xFF4CAF50.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode(RichText("Android"), sp(14f), 0xFF4CAF50.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
                 startToEndOf = "tag_1", marginStart = dp(8),
                 topToTopOf = "tag_1",
             ),
             ConstraintChild(
                 id = "tag_3",
-                node = TextNode("WrapContent", sp(14f), 0xFF2196F3.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode(RichText("WrapContent"), sp(14f), 0xFF2196F3.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
                 startToEndOf = "tag_2", marginStart = dp(8),
                 topToTopOf = "tag_2",
             )
@@ -480,7 +498,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_confirm",
                 node = TextNode(
-                    text = "NÚT CĂN GIỮA MÀN HÌNH", 
+                    text = RichText("NÚT CĂN GIỮA MÀN HÌNH"),
                     textSizePx = sp(14f), 
                     color = 0xFF6200EE.toInt(), 
                     typeface = Typeface.DEFAULT_BOLD,
@@ -489,6 +507,68 @@ class MainActivity : AppCompatActivity() {
                 startToStartOf = ConstraintNode.PARENT,
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT
+            )
+        )
+    )
+
+    /**
+     * **OutlineNode** loading card — effect là sibling phủ lên content.
+     */
+    private fun buildLoadingOutlineCard(): LayoutNode = ConstraintNode(
+        layoutWidth = LayoutDimension.MatchParent,
+        layoutHeight = LayoutDimension.Fixed(dp(92)),
+        children = listOf(
+            ConstraintChild(
+                id = "outline",
+                node = OutlineNode(
+                    layoutWidth = LayoutDimension.MatchParent,
+                    layoutHeight = LayoutDimension.MatchParent,
+                    backgroundColor = 0x11E91E63,
+                    strokeColor = 0xFFE91E63.toInt(),
+                    strokeWidth = dp(2).toFloat(),
+                    cornerRadius = dp(16).toFloat(),
+                    dashWidth = dp(10).toFloat(),
+                    dashGap = dp(6).toFloat(),
+                    loadingSegmentRatio = 0.35f,
+                    loadingDurationMs = 900L,
+                    state = OutlineState.LOADING
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+                bottomToBottomOf = ConstraintNode.PARENT,
+                width = LayoutDimension.MatchParent,
+                height = LayoutDimension.MatchParent
+            ),
+            ConstraintChild(
+                id = "content",
+                node = LinearNode(
+                    orientation = Orientation.VERTICAL,
+                    gap = dp(4),
+                    padding = EdgeInsets.all(dp(16)),
+                    layoutWidth = LayoutDimension.MatchParent,
+                    children = listOf(
+                        TextNode(
+                            text = RichText("Outline đang xử lý"),
+                            textSizePx = sp(16f),
+                            color = Color.BLACK,
+                            typeface = Typeface.DEFAULT_BOLD,
+                            maxLines = 1
+                        ),
+                        TextNode(
+                            text = RichText("OutlineNode chỉ vẽ effect; content nằm ở sibling khác."),
+                            textSizePx = sp(12f),
+                            color = Color.DKGRAY,
+                            maxLines = 2
+                        )
+                    )
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+                bottomToBottomOf = ConstraintNode.PARENT,
+                width = LayoutDimension.MatchParent,
+                verticalBias = 0.5f
             )
         )
     )

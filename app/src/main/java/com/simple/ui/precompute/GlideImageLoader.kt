@@ -6,7 +6,6 @@ import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.simple.ui.precompute.node.ImageSource
 import com.simple.ui.precompute.node.ImageSpec
 import java.io.File
 import java.util.WeakHashMap
@@ -40,11 +39,11 @@ class GlideImageLoader(context: Context) : ImageLoader {
             .override(w, h)
 
         val withModel = when (val s = spec.source) {
-            is ImageSource.BitmapSource -> request.load(s.bitmap)
-            is ImageSource.ResSource -> request.load(s.resId)
-            is ImageSource.PathSource -> request.load(File(s.path))
-            is ImageSource.UrlSource -> request.load(s.url)
-            is ImageSource.DrawableSource -> request.load(s.drawable)
+            is RichImage.BitmapSource -> request.load(s.bitmap)
+            is RichImage.ResSource -> request.load(s.resId)
+            is RichImage.PathSource -> request.load(File(s.path))
+            is RichImage.UrlSource -> request.load(s.url)
+            is RichImage.DrawableSource -> request.load(s.drawable)
         }
 
         val target = object : CustomTarget<Drawable>(w, h) {
