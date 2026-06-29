@@ -1,6 +1,7 @@
-package com.simple.launcher.retirement.utils.text
+package com.simple.ui.precompute.text
 
 import android.widget.TextView
+import com.simple.ui.precompute.text.span.TextSize
 
 fun TextView.setText(text: RichText?) {
 

@@ -4,11 +4,10 @@ import org.gradle.api.publish.maven.MavenPublication
 plugins {
     alias(libs.plugins.android.library)
     `maven-publish`
-    alias(libs.plugins.android.legacy.kapt)
 }
 
 android {
-    namespace = "com.simple.phonetics.ui.precompute"
+    namespace = "com.simple.phonetics.ui.precompute.glide"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -36,9 +35,9 @@ afterEvaluate {
     extensions.configure<PublishingExtension> {
         publications {
             register<MavenPublication>("release") {
-                groupId = "com.github.hoanganhtuan95ptit.core"
-                artifactId = "node-engine"
-                version = "1.0.0"
+                groupId = project.group.toString()
+                artifactId = "glide-loader"
+                version = project.version.toString()
 
                 from(components["release"])
             }
@@ -47,8 +46,6 @@ afterEvaluate {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.coroutines.android)
-    compileOnly(libs.google.auto.service.annotations)
-    kapt(libs.google.auto.service)
+    api(project(":node-engine"))
+    api(libs.glide)
 }

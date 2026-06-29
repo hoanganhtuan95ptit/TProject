@@ -3,3 +3,17 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
 }
+
+subprojects {
+    group = "com.github.hoanganhtuan95ptit.core"
+    version = "1.0.0"
+}
+
+tasks.register("publishLibrariesToMavenLocal") {
+    group = "publishing"
+    description = "Publishes node-engine and glide-loader release artifacts to Maven local."
+    dependsOn(
+        ":node-engine:publishReleasePublicationToMavenLocal",
+        ":glide-loader:publishReleasePublicationToMavenLocal"
+    )
+}

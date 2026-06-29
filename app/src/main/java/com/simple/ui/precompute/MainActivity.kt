@@ -9,15 +9,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.simple.launcher.retirement.utils.image.RichImage
-import com.simple.launcher.retirement.utils.image.addTransform
-import com.simple.launcher.retirement.utils.image.build
-import com.simple.launcher.retirement.utils.image.toBuilder
-import com.simple.launcher.retirement.utils.text.ForegroundColor
-import com.simple.launcher.retirement.utils.text.RichText
-import com.simple.launcher.retirement.utils.text.TextSize
-import com.simple.launcher.retirement.utils.text.build
-import com.simple.launcher.retirement.utils.text.with
+import com.simple.ui.precompute.image.RichImage
+import com.simple.ui.precompute.image.addTransform
+import com.simple.ui.precompute.image.build
+import com.simple.ui.precompute.image.toBuilder
+import com.simple.ui.precompute.text.span.ForegroundColor
+import com.simple.ui.precompute.text.RichText
+import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.build
+import com.simple.ui.precompute.text.with
 import com.simple.t.R
 import com.simple.ui.precompute.image.CircleCrop
 import com.simple.ui.precompute.image.RoundedCorners
@@ -585,10 +585,9 @@ class MainActivity : AppCompatActivity() {
                 ),
                 item(
                     label = "CircleCrop",
-                    image = RichImage(
-                        source = baseSource,
-                        transforms = listOf(CircleCrop),
-                    ),
+                    image = R.drawable.image.toBuilder()
+                        .addTransform(CircleCrop)
+                        .build(),
                 ),
                 item(
                     label = "Rounded ${rounded}px",

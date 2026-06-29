@@ -1,4 +1,4 @@
-package com.simple.launcher.retirement.utils.text
+package com.simple.ui.precompute.text
 
 class RichTextBuilder(val text: String) {
 

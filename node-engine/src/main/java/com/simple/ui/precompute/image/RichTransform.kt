@@ -1,4 +1,4 @@
-package com.simple.launcher.retirement.utils.image
+package com.simple.ui.precompute.image
 
 /**
  * Marker cho một transform áp vào [RichImage].

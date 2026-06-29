@@ -1,8 +1,14 @@
-package com.simple.launcher.retirement.utils.text
+package com.simple.ui.precompute.text
 
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.CharacterStyle
+import com.simple.ui.precompute.text.span.BoldConvert
+import com.simple.ui.precompute.text.span.CustomFontConvert
+import com.simple.ui.precompute.text.span.ForegroundColorConvert
+import com.simple.ui.precompute.text.span.RelativeSizeConvert
+import com.simple.ui.precompute.text.span.RoundedOutlineSpanConvert
+import com.simple.ui.precompute.text.span.TextSizeConvert
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap

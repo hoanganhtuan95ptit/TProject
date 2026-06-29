@@ -84,6 +84,7 @@ Trên Android stock, `View.onMeasure()` chạy ở **UI thread**, bao gồm cả
 
 ```kotlin
 include(":node-engine")
+include(":glide-loader") // nếu muốn dùng implementation Glide có sẵn
 ```
 
 `app/build.gradle.kts`:
@@ -91,10 +92,32 @@ include(":node-engine")
 ```kotlin
 dependencies {
     implementation(project(":node-engine"))
+    implementation(project(":glide-loader")) // cung cấp GlideImageLoader + transforms
 }
 ```
 
-### 3.2 Cài BitmapLoader (bắt buộc nếu dùng ảnh async)
+Nếu dùng qua Maven Local, thêm `mavenLocal()` vào repositories của project tiêu thụ rồi khai báo:
+
+```kotlin
+dependencies {
+    implementation("com.github.hoanganhtuan95ptit.core:node-engine:1.0.0")
+    implementation("com.github.hoanganhtuan95ptit.core:glide-loader:1.0.0")
+}
+```
+
+Publish cả hai artifact lên Maven Local:
+
+```bash
+./gradlew publishLibrariesToMavenLocal
+```
+
+Hoặc publish riêng module Glide:
+
+```bash
+./gradlew :glide-loader:publishReleasePublicationToMavenLocal
+```
+
+### 3.2 Cài ImageLoader (bắt buộc nếu dùng ảnh async)
 
 Gọi **một lần duy nhất** trong `Application.onCreate()`:
 
@@ -102,13 +125,13 @@ Gọi **một lần duy nhất** trong `Application.onCreate()`:
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // GlideBitmapLoader là implementation của bạn nằm trong module :app
-        BitmapLoader.install(GlideBitmapLoader(this))
+        // GlideImageLoader nằm trong module :glide-loader
+        ImageLoader.install(GlideImageLoader(this))
     }
 }
 ```
 
-> ⚠️ **Quan trọng:** Nếu không `install` `BitmapLoader`, mọi `ImageNode` với nguồn
+> ⚠️ **Quan trọng:** Nếu không `install` `ImageLoader`, mọi `ImageNode` với nguồn
 > `ResSource` / `UrlSource` / `PathSource` / `DrawableSource` sẽ **không hiển thị ảnh**.
 > Với `BitmapSource` (bitmap đã load sẵn) thì không cần loader.
 
@@ -152,7 +175,7 @@ Khi vượt quá `maxLines`, text tự động bị ellipsize (`…`) ở cuối
 
 ### 4.2 `ImageNode` — Hình ảnh
 
-**Bitmap có sẵn (đơn giản nhất, không cần BitmapLoader):**
+**Bitmap có sẵn (đơn giản nhất, không cần ImageLoader):**
 
 ```kotlin
 ImageNode.fromBitmap(
@@ -508,7 +531,7 @@ binding.precomputedView.spec = null
 | Kích thước thay đổi | `requestLayout()` → `postInvalidateOnAnimation()` |
 | Kích thước giữ nguyên | `postInvalidateOnAnimation()` |
 | View đang attached | `onDetachedFromWindow(old)` → `onAttachedToWindow(new)` |
-| Spec mới có `ImageSpec` async | Tự bắt đầu load bitmap qua `BitmapLoader` |
+| Spec mới có `ImageSpec` async | Tự bắt đầu load bitmap qua `ImageLoader` |
 
 ---
 
@@ -943,8 +966,8 @@ val spec: DrawSpec = withContext(Dispatchers.Default) {
 // ── Gán cho view (UI thread) ─────────────────────────────────────────────────
 precomputedView.spec = spec       // auto requestLayout + invalidate
 
-// ── BitmapLoader (Application.onCreate) ─────────────────────────────────────
-BitmapLoader.install(GlideBitmapLoader(this))
+// ── ImageLoader (Application.onCreate) ──────────────────────────────────────
+ImageLoader.install(GlideImageLoader(this))
 
 // ── EdgeInsets shortcuts ─────────────────────────────────────────────────────
 EdgeInsets.ZERO                         // không padding

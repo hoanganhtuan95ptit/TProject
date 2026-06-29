@@ -1,4 +1,7 @@
-package com.simple.launcher.retirement.utils.text
+package com.simple.ui.precompute.text.span
+
+import com.simple.ui.precompute.text.RichSpan
+import com.simple.ui.precompute.text.RichSpanConvert
 
 import android.graphics.Typeface
 import android.text.TextPaint
@@ -23,6 +26,7 @@ class CustomFontConvert : RichSpanConvert {
 }
 
 private class CustomFontAndroidSpan(private val typeface: Typeface) : MetricAffectingSpan() {
+
     override fun updateMeasureState(paint: TextPaint) {
         paint.typeface = typeface
     }

@@ -6,10 +6,15 @@ import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.View
-import com.simple.launcher.retirement.utils.image.RichImage
+import com.simple.ui.precompute.image.RichImage
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.ImageLoader
 import com.simple.ui.precompute.MeasureContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,6 +80,9 @@ data class ImageNode(
  *
  * [drawable] null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter;
  * trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
+ *
+ * Threading: setter của [drawable] luôn được gọi trên main (Glide CustomTarget
+ * callbacks + onAttach), [onDrawContent] cũng ở main → không cần @Volatile.
  */
 class ImageSpec(
     override val left: Int,
@@ -85,32 +93,59 @@ class ImageSpec(
     val dst: Rect
 ) : DrawSpec() {
 
-    @Volatile
     var drawable: Drawable? = null
         set(value) {
-            field?.callback = null
-            field = value?.apply {
-                bounds = centerInside(dst)
-                if (attachedView != null) {
-                    callback = this@ImageSpec.callback
-                }
+            if (field === value) return
+
+            // Tháo drawable cũ: stop animation + clear callback để giải phóng
+            // tham chiếu tới view (tránh leak khi drawable cũ vẫn còn ref).
+            val old = field
+            if (old != null) {
+                (old as? Animatable)?.stop()
+                old.callback = null
+            }
+
+            field = value
+            if (value == null) return
+
+            // centerInside chỉ là arithmetic integer — chạy sync trên main rẻ
+            // hơn nhiều so với dispatch sang Default rồi bounce về Main.
+            value.bounds = value.centerInside(dst)
+
+            // Chỉ gắn callback + start animation khi view đang attached.
+            if (attachedView != null) {
+                value.callback = drawableCallback
+                (value as? Animatable)?.start()
             }
         }
 
     private var attachedView: View? = null
 
-    private val callback = object : Drawable.Callback {
-        override fun invalidateDrawable(who: Drawable) {
-            attachedView?.postInvalidateOnAnimation()
-        }
+    /**
+     * Scope sống từ attach → detach. Dùng để gọi [ImageLoader.load] off-main,
+     * tự cancel khi detach. Main.immediate để onReady callback từ Glide
+     * (đang ở main) không phải post lại 1 tick.
+     */
+    private var scope: CoroutineScope? = null
 
-        override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
-            val delay = `when` - android.os.SystemClock.uptimeMillis()
-            attachedView?.postDelayed(what, delay)
-        }
+    /**
+     * Lazy: spec chưa từng có drawable thì khỏi cấp phát object này.
+     * NONE vì mọi truy cập đều trên main thread.
+     */
+    private val drawableCallback: Drawable.Callback by lazy(LazyThreadSafetyMode.NONE) {
+        object : Drawable.Callback {
+            override fun invalidateDrawable(who: Drawable) {
+                attachedView?.postInvalidateOnAnimation()
+            }
 
-        override fun unscheduleDrawable(who: Drawable, what: Runnable) {
-            attachedView?.removeCallbacks(what)
+            override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
+                val delay = `when` - android.os.SystemClock.uptimeMillis()
+                attachedView?.postDelayed(what, delay)
+            }
+
+            override fun unscheduleDrawable(who: Drawable, what: Runnable) {
+                attachedView?.removeCallbacks(what)
+            }
         }
     }
 
@@ -120,34 +155,48 @@ class ImageSpec(
 
     override fun onAttachedToWindow(view: View) {
         attachedView = view
-        drawable?.callback = callback
-        (drawable as? Animatable)?.start()
+        val s = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope = s
+
+        drawable?.let {
+            it.callback = drawableCallback
+            (it as? Animatable)?.start()
+        }
 
         // Đã có ảnh từ lần load trước thì không cần load lại.
         if (drawable != null) return
         val loader = ImageLoader.get() ?: return
-        // Dispatch off-main: tất cả setup (build RequestBuilder, resolve
-        // transforms, lookup RequestManager...) chạy ở bg thread của loader.
-        loader.dispatcher.execute {
-            loader.load(this) { view.postInvalidateOnAnimation() }
+        // Load off-main; nếu detach trước khi xong sẽ tự cancel theo scope.
+        s.launch(Dispatchers.Default) {
+            loader.load(this@ImageSpec) { view.postInvalidateOnAnimation() }
         }
     }
 
     override fun onDetachedFromWindow(view: View) {
         attachedView = null
-        drawable?.callback = null
-        (drawable as? Animatable)?.stop()
+        val d = drawable
+        if (d != null) {
+            d.callback = null
+            (d as? Animatable)?.stop()
+        }
+
+        // Huỷ scope → in-flight load coroutine dừng. Cancel của loader đi qua
+        // dispatcher của chính nó để giữ thứ tự load↔cancel cho cùng spec.
+        scope?.cancel()
+        scope = null
 
         val loader = ImageLoader.get() ?: return
-        // Cancel cũng dispatch cùng executor → đảm bảo chạy sau load đã
-        // queue cho cùng spec, không drop frame ở main.
         loader.dispatcher.execute { loader.cancel(this) }
     }
 
+    /**
+     * Không copy [drawable] sang spec mới: withPosition luôn được gọi trên spec
+     * vừa-measure (chưa attach, chưa có drawable). Việc share drawable giữa
+     * nhiều spec là latent risk vì khi spec cũ detach sẽ stop animation /
+     * clear callback của cùng object — ảnh hưởng spec mới.
+     */
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        ImageSpec(newLeft, newTop, width, height, source, dst).also {
-            it.drawable = drawable
-        }
+        ImageSpec(newLeft, newTop, width, height, source, dst)
 
     private fun Drawable.centerInside(container: Rect): Rect {
         val containerW = container.width()

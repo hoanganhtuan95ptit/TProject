@@ -14,3 +14,4 @@
 .cxx
 local.properties
 /node-engine/build
+/glide-loader/build

@@ -1,5 +1,6 @@
 package com.simple.ui.precompute.node
 
+import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -7,7 +8,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
-import com.simple.launcher.retirement.utils.text.RichText
+import com.simple.ui.precompute.text.RichText
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
 import kotlin.math.ceil
@@ -34,13 +35,7 @@ data class TextNode(
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
-    /**
-     * Density truyền vào [TextPaint.density] — phải resolve sẵn từ caller
-     * (vd `resources.displayMetrics.density`). `null` = giữ density mặc định
-     * của [TextPaint], không đụng [android.content.res.Resources]; engine
-     * tuân quy ước "không touch Context/Resources".
-     */
-    val textPaintDensity: Float? = null
+    val textPaintDensity: Float = Resources.getSystem().displayMetrics.density
 ) : LayoutNode() {
 
     override fun measure(
@@ -56,7 +51,7 @@ data class TextNode(
 
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = textSizePx
-            this@TextNode.textPaintDensity?.let { density = it }
+            density = textPaintDensity
             color = this@TextNode.color
             this@TextNode.typeface?.let { typeface = it }
         }

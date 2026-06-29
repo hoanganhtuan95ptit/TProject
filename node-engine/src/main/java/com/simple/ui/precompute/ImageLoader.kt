@@ -21,7 +21,7 @@ import java.util.concurrent.Executors
  * Mặc định [dispatcher] là một single-thread executor — đảm bảo cancel
  * luôn chạy sau load đã queue cùng spec, tránh race.
  *
- * Implementation chuẩn: `GlideImageLoader` ở module :app.
+ * Implementation chuẩn: `GlideImageLoader` ở module :glide-loader.
  */
 interface ImageLoader {
 

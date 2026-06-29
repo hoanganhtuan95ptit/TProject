@@ -5,15 +5,15 @@ import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.Transformation
 import com.bumptech.glide.load.resource.bitmap.CircleCrop as GlideCircleCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners as GlideRoundedCorners
-import com.simple.launcher.retirement.utils.image.RichImage
-import com.simple.launcher.retirement.utils.image.RichTransform
+import com.simple.ui.precompute.image.RichImage
+import com.simple.ui.precompute.image.RichTransform
 
 /**
  * Map từ [RichTransform] (engine, không biết Glide) sang [Transformation]
- * của Glide. Tầng :app sở hữu interface này — engine không phụ thuộc.
+ * của Glide. Module Glide loader sở hữu interface này — engine không phụ thuộc.
  *
  * Cách mở rộng: tạo class kế thừa [RichTransform] + một converter tương ứng
- * (hoặc gom vào 1 converter chung) rồi thêm vào [RichTransformConverters.ALL].
+ * (hoặc gom vào 1 converter chung) rồi register vào [RichTransformConverters].
  */
 interface RichTransformConvert {
     fun convert(transform: RichTransform): Transformation<Bitmap>?

@@ -1,4 +1,7 @@
-package com.simple.launcher.retirement.utils.text
+package com.simple.ui.precompute.text.span
+
+import com.simple.ui.precompute.text.RichSpan
+import com.simple.ui.precompute.text.RichSpanConvert
 
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.CharacterStyle

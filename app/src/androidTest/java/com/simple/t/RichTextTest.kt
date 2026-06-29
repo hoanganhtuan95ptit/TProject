@@ -5,10 +5,10 @@ import android.text.Spanned
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.simple.launcher.retirement.utils.text.ForegroundColor
-import com.simple.launcher.retirement.utils.text.TextSize
-import com.simple.launcher.retirement.utils.text.build
-import com.simple.launcher.retirement.utils.text.with
+import com.simple.ui.precompute.text.span.ForegroundColor
+import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.build
+import com.simple.ui.precompute.text.with
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
