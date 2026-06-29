@@ -3,34 +3,12 @@ package com.simple.ui.precompute.text
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.CharacterStyle
-import com.simple.ui.precompute.text.span.BoldConvert
-import com.simple.ui.precompute.text.span.CustomFontConvert
-import com.simple.ui.precompute.text.span.ForegroundColorConvert
-import com.simple.ui.precompute.text.span.RelativeSizeConvert
-import com.simple.ui.precompute.text.span.RoundedOutlineSpanConvert
-import com.simple.ui.precompute.text.span.TextSizeConvert
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
 
-private val builtInBigSpanConvertList by lazy {
-    listOf(
-        BoldConvert(),
-        CustomFontConvert(),
-        ForegroundColorConvert(),
-        RelativeSizeConvert(),
-        RoundedOutlineSpanConvert(),
-        TextSizeConvert()
-    )
-}
-
 private val bigSpanConvertList by lazy {
-    (loadServiceBigSpanConverters() + builtInBigSpanConvertList)
-        .distinctBy { it.javaClass.name }
-}
-
-private fun loadServiceBigSpanConverters(): List<BigSpanConvert> {
-    return try {
+    try {
         ServiceLoader.load(BigSpanConvert::class.java).toList()
     } catch (_: ServiceConfigurationError) {
         emptyList()

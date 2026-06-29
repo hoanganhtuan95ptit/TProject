@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.library)
     `maven-publish`
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlinKapt)
 }
 
 android {
@@ -52,4 +53,7 @@ afterEvaluate {
 dependencies {
     api(project(":node-engine"))
     api(libs.glide)
+    api(libs.glide.transformations)
+    compileOnly(libs.google.auto.service.annotations)
+    kapt(libs.google.auto.service)
 }

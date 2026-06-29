@@ -3,41 +3,31 @@ package com.simple.ui.precompute.image
 import android.graphics.Bitmap
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.Transformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop as GlideCircleCrop
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners as GlideRoundedCorners
-import com.simple.ui.precompute.image.BigImage
-import com.simple.ui.precompute.image.BigTransform
+import java.util.ServiceConfigurationError
+import java.util.ServiceLoader
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Map từ [BigTransform] (engine, không biết Glide) sang [Transformation]
  * của Glide. Module Glide loader sở hữu interface này — engine không phụ thuộc.
  *
  * Cách mở rộng: tạo class kế thừa [BigTransform] + một converter tương ứng
- * (hoặc gom vào 1 converter chung) rồi register vào [BigTransformConverters].
+ * (hoặc gom vào 1 converter chung), annotate bằng AutoService.
  */
 interface BigTransformConvert {
     fun convert(transform: BigTransform): Transformation<Bitmap>?
 }
 
-// ── Built-in transforms ─────────────────────────────────────────────────────
-
-/** Crop tròn. */
-object CircleCrop : BigTransform()
-
-/** Bo góc theo bán kính (px). */
-data class RoundedCorners(val radiusPx: Int) : BigTransform()
-
-// ── Converters ──────────────────────────────────────────────────────────────
-
-private object BuiltInConvert : BigTransformConvert {
-    private val circleCrop by lazy { GlideCircleCrop() }
-
-    override fun convert(transform: BigTransform): Transformation<Bitmap>? = when (transform) {
-        is CircleCrop -> circleCrop
-        is RoundedCorners -> GlideRoundedCorners(transform.radiusPx.coerceAtLeast(0))
-        else -> null
+private val bigTransformConvertList by lazy {
+    try {
+        ServiceLoader.load(BigTransformConvert::class.java).toList()
+    } catch (_: ServiceConfigurationError) {
+        emptyList()
     }
 }
+
+private val bigTransformConvertCache =
+    ConcurrentHashMap<kotlin.reflect.KClass<out BigTransform>, BigTransformConvert>()
 
 /**
  * Registry. Engine giữ [BigImage.transforms] dạng list marker;
@@ -46,29 +36,34 @@ private object BuiltInConvert : BigTransformConvert {
 object BigTransformConverters {
 
     /**
-     * Cho phép app thêm converter của riêng họ (vd custom blur, vignette).
-     * Thread-safe — chỉ append trước khi load ảnh đầu tiên là an toàn.
-     */
-    private val extra = mutableListOf<BigTransformConvert>()
-
-    fun register(convert: BigTransformConvert) {
-        synchronized(extra) { extra.add(convert) }
-    }
-
-    /**
      * Build [Transformation] tổng hợp từ [BigImage.transforms]; trả về `null`
      * nếu list rỗng hoặc không có converter nào match.
      */
     fun build(transforms: List<BigTransform>): Transformation<Bitmap>? {
         if (transforms.isEmpty()) return null
-        val mapped = transforms.mapNotNull { t ->
-            BuiltInConvert.convert(t)
-                ?: synchronized(extra) { extra.firstNotNullOfOrNull { it.convert(t) } }
-        }
+        val mapped = transforms.mapNotNull { it.toGlideTransformation() }
         return when (mapped.size) {
             0 -> null
             1 -> mapped[0]
             else -> MultiTransformation(*mapped.toTypedArray())
         }
+    }
+
+    private fun BigTransform.toGlideTransformation(): Transformation<Bitmap>? {
+        val klass = this::class
+        val cached = bigTransformConvertCache[klass]
+        if (cached != null) {
+            cached.convert(this)?.let { return it }
+            bigTransformConvertCache.remove(klass, cached)
+        }
+
+        for (converter in bigTransformConvertList) {
+            val transform = converter.convert(this)
+            if (transform != null) {
+                bigTransformConvertCache.putIfAbsent(klass, converter)
+                return transform
+            }
+        }
+        return null
     }
 }

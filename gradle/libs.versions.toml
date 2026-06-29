@@ -10,6 +10,7 @@ lifecycleViewmodel = "2.9.1"
 coroutines = "1.10.2"
 constraintlayout = "2.2.1"
 glide = "4.16.0"
+glideTransformations = "4.3.0"
 autoService = "1.1.1"
 kotlin = "2.0.21"
 
@@ -24,6 +25,7 @@ androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-transformations = { group = "jp.wasabeef", name = "glide-transformations", version.ref = "glideTransformations" }
 google-auto-service = { group = "com.google.auto.service", name = "auto-service", version.ref = "autoService" }
 google-auto-service-annotations = { group = "com.google.auto.service", name = "auto-service-annotations", version.ref = "autoService" }
 
