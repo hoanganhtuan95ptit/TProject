@@ -14,12 +14,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class RichTextTest {
+class BigTextTest {
 
     @Test
-    fun richTextAppliesForegroundColorAndTextSize() {
-        val richText = "Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)).build()
-        val spanned = richText.textChar as Spanned
+    fun bigTextAppliesForegroundColorAndTextSize() {
+        val bigText = "Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)).build()
+        val spanned = bigText.textChar as Spanned
 
         val colorSpans = spanned.getSpans(0, spanned.length, ForegroundColorSpan::class.java)
         val sizeSpans = spanned.getSpans(0, spanned.length, AbsoluteSizeSpan::class.java)

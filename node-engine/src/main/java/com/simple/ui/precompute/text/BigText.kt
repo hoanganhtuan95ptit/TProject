@@ -13,7 +13,7 @@ import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
 
-private val builtInRichSpanConvertList by lazy {
+private val builtInBigSpanConvertList by lazy {
     listOf(
         BoldConvert(),
         CustomFontConvert(),
@@ -24,31 +24,31 @@ private val builtInRichSpanConvertList by lazy {
     )
 }
 
-private val richSpanConvertList by lazy {
-    (loadServiceRichSpanConverters() + builtInRichSpanConvertList)
+private val bigSpanConvertList by lazy {
+    (loadServiceBigSpanConverters() + builtInBigSpanConvertList)
         .distinctBy { it.javaClass.name }
 }
 
-private fun loadServiceRichSpanConverters(): List<RichSpanConvert> {
+private fun loadServiceBigSpanConverters(): List<BigSpanConvert> {
     return try {
-        ServiceLoader.load(RichSpanConvert::class.java).toList()
+        ServiceLoader.load(BigSpanConvert::class.java).toList()
     } catch (_: ServiceConfigurationError) {
         emptyList()
     }
 }
 
-// Cache KClass → RichSpanConvert: lần đầu O(n) scan, từ lần 2 trở đi O(1).
-// RichText có thể được build từ bất kỳ thread nào (kể cả Dispatchers.Default
+// Cache KClass → BigSpanConvert: lần đầu O(n) scan, từ lần 2 trở đi O(1).
+// BigText có thể được build từ bất kỳ thread nào (kể cả Dispatchers.Default
 // trước khi gắn vào view), nên dùng ConcurrentHashMap để an toàn.
-private val richSpanConvertCache =
-    ConcurrentHashMap<kotlin.reflect.KClass<out RichSpan>, RichSpanConvert>()
+private val bigSpanConvertCache =
+    ConcurrentHashMap<kotlin.reflect.KClass<out BigSpan>, BigSpanConvert>()
 
-data class RichText(
+data class BigText(
     val text: String,
-    val spans: ArrayList<RichStyle> = arrayListOf()
+    val spans: ArrayList<BigStyle> = arrayListOf()
 ) {
 
-    // Lazy: nếu không ai đọc textChar (vd RichText chỉ tạm để equals/copy)
+    // Lazy: nếu không ai đọc textChar (vd BigText chỉ tạm để equals/copy)
     // thì khỏi đo spannable. Khi đo trên bg thread, lần truy cập đầu tiên sẽ
     // chạy refresh() — vẫn off main thread. @Volatile để publish an toàn
     // qua thread boundary.
@@ -63,7 +63,7 @@ data class RichText(
             _textChar = value
         }
 
-    fun refresh(): RichText {
+    fun refresh(): BigText {
         synchronized(this) { _textChar = buildTextChar() }
         return this
     }
@@ -80,36 +80,36 @@ data class RichText(
         return spannable
     }
 
-    private fun RichSpan.toAndroidSpan(): CharacterStyle {
+    private fun BigSpan.toAndroidSpan(): CharacterStyle {
         val klass = this::class
-        val cached = richSpanConvertCache[klass]
+        val cached = bigSpanConvertCache[klass]
         if (cached != null) {
             cached.getAndroidSpan(this)?.let { return it }
-            richSpanConvertCache.remove(klass, cached)
+            bigSpanConvertCache.remove(klass, cached)
         }
 
-        for (converter in richSpanConvertList) {
+        for (converter in bigSpanConvertList) {
             val span = converter.getAndroidSpan(this)
             if (span != null) {
-                richSpanConvertCache.putIfAbsent(klass, converter)
+                bigSpanConvertCache.putIfAbsent(klass, converter)
                 return span
             }
         }
-        error("No RichSpanConvert found for ${klass.simpleName}")
+        error("No BigSpanConvert found for ${klass.simpleName}")
     }
 
     companion object {
 
-        fun Builder(text: String) = RichTextBuilder(text)
+        fun Builder(text: String) = BigTextBuilder(text)
     }
 }
 
-data class RichStyle(
-    val range: RichRange,
-    val styles: List<RichSpan> = arrayListOf()
+data class BigStyle(
+    val range: BigRange,
+    val styles: List<BigSpan> = arrayListOf()
 )
 
-data class RichRange(
+data class BigRange(
     val start: Int,
     val end: Int
 )

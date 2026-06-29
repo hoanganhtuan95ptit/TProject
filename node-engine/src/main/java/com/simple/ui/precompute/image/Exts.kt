@@ -1,41 +1,41 @@
 package com.simple.ui.precompute.image
 
 private val EMPTY by lazy {
-    RichImage("")
+    BigImage("")
 }
 
 fun emptyImage() = EMPTY
 
 
-fun Int.toBuilder(): RichImageBuilder {
+fun Int.toBuilder(): BigImageBuilder {
 
-    return RichImageBuilder(this)
+    return BigImageBuilder(this)
 }
 
-fun String.toBuilder(): RichImageBuilder {
+fun String.toBuilder(): BigImageBuilder {
 
-    return RichImageBuilder(this)
+    return BigImageBuilder(this)
 }
 
-fun RichImageBuilder.addTransform(vararg transform: RichTransform): RichImageBuilder {
+fun BigImageBuilder.addTransform(vararg transform: BigTransform): BigImageBuilder {
 
     add(*transform)
     return this
 }
 
-fun RichImageBuilder.setError(error: Int): RichImageBuilder {
+fun BigImageBuilder.setError(error: Int): BigImageBuilder {
 
     this.error = error
     return this
 }
 
-fun RichImageBuilder.setPlaceholder(placeholder: Int): RichImageBuilder {
+fun BigImageBuilder.setPlaceholder(placeholder: Int): BigImageBuilder {
 
     this.placeholder = placeholder
     return this
 }
 
-fun RichImageBuilder.build() = RichImage(
+fun BigImageBuilder.build() = BigImage(
     source = source,
     error = error,
     placeholder = placeholder,

@@ -143,7 +143,7 @@ class MyApp : Application() {
 
 ```kotlin
 TextNode(
-    text           = RichText("Hello World"),
+    text           = BigText("Hello World"),
     textSizePx     = 18f * resources.displayMetrics.scaledDensity, // sp → px
     color          = Color.BLACK,
     maxLines       = 2,
@@ -158,7 +158,7 @@ TextNode(
 
 | Tham số | Kiểu | Bắt buộc | Ghi chú |
 |---------|------|:--------:|---------|
-| `text` | `RichText` | ✅ | Hỗ trợ rich text qua `RichStyle` |
+| `text` | `BigText` | ✅ | Hỗ trợ big text qua `BigStyle` |
 | `textSizePx` | `Float` | ✅ | Đơn vị **pixel** — tự quy đổi `sp → px` |
 | `color` | `Int` | ✅ | `Color.BLACK`, `0xFF334455.toInt()`, v.v. |
 | `maxLines` | `Int` | | Mặc định không giới hạn (`Int.MAX_VALUE`) |
@@ -190,7 +190,7 @@ ImageNode.fromBitmap(
 
 ```kotlin
 ImageNode(
-    source       = RichImage.ResSource(R.drawable.ic_logo),
+    source       = BigImage.ResSource(R.drawable.ic_logo),
     layoutWidth  = LayoutDimension.Fixed(48.dp),
     layoutHeight = LayoutDimension.Fixed(48.dp),
     padding      = EdgeInsets(right = 8.dp)
@@ -201,7 +201,7 @@ ImageNode(
 
 ```kotlin
 ImageNode(
-    source       = RichImage.UrlSource("https://example.com/photo.jpg"),
+    source       = BigImage.UrlSource("https://example.com/photo.jpg"),
     layoutWidth  = LayoutDimension.Fixed(200.dp),
     layoutHeight = LayoutDimension.Fixed(120.dp)
 )
@@ -211,7 +211,7 @@ ImageNode(
 
 ```kotlin
 ImageNode(
-    source       = RichImage.DrawableSource(myDrawable),
+    source       = BigImage.DrawableSource(myDrawable),
     layoutWidth  = LayoutDimension.Fixed(24.dp),
     layoutHeight = LayoutDimension.Fixed(24.dp)
 )
@@ -279,7 +279,7 @@ ConstraintNode(
         ConstraintChild(
             id             = "avatar",
             node           = ImageNode(
-                RichImage.ResSource(R.drawable.avatar),
+                BigImage.ResSource(R.drawable.avatar),
                 layoutWidth = LayoutDimension.Fixed(40.dp),
                 layoutHeight = LayoutDimension.Fixed(40.dp),
             ),
@@ -288,7 +288,7 @@ ConstraintNode(
         ),
         ConstraintChild(
             id           = "name",
-            node         = TextNode(RichText("Nguyễn Văn A"), 16.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+            node         = TextNode(BigText("Nguyễn Văn A"), 16.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
             startToEndOf = "avatar", marginStart = 12.dp,
             endToEndOf   = PARENT,
             topToTopOf   = "avatar",
@@ -296,7 +296,7 @@ ConstraintNode(
         ),
         ConstraintChild(
             id             = "email",
-            node           = TextNode(RichText("nva@example.com"), 13.sp, Color.GRAY),
+            node           = TextNode(BigText("nva@example.com"), 13.sp, Color.GRAY),
             startToStartOf = "name",
             topToBottomOf  = "name", marginTop = 4.dp,
         ),
@@ -447,7 +447,7 @@ Ví dụ:
 
 ```kotlin
 TextNode(
-    text = RichText("Title"),
+    text = BigText("Title"),
     textSizePx = 16.sp,
     color = Color.BLACK,
     layoutWidth = LayoutDimension.MatchParent,
@@ -577,8 +577,8 @@ class CardViewModel(private val appContext: Context) : ViewModel() {
         orientation = Orientation.VERTICAL,
         gap         = 4.dp,
         children    = listOf(
-            TextNode(RichText(word), 18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
-            TextNode(RichText(ipa),  14.sp, Color.GRAY)
+            TextNode(BigText(word), 18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+            TextNode(BigText(ipa),  14.sp, Color.GRAY)
         )
     )
 }
@@ -649,7 +649,7 @@ class WordAdapter(
         crossAlign  = CrossAlign.CENTER,
         children    = listOf(
             ImageNode(
-                RichImage.ResSource(item.iconRes),
+                BigImage.ResSource(item.iconRes),
                 layoutWidth = LayoutDimension.Fixed(24.dp),
                 layoutHeight = LayoutDimension.Fixed(24.dp),
             ),
@@ -657,9 +657,9 @@ class WordAdapter(
                 orientation = Orientation.VERTICAL,
                 gap         = 2.dp,
                 children    = listOf(
-                    TextNode(RichText(item.word), 16.sp, Color.BLACK, maxLines = 1,
+                    TextNode(BigText(item.word), 16.sp, Color.BLACK, maxLines = 1,
                              typeface = Typeface.DEFAULT_BOLD),
-                    TextNode(RichText(item.ipa),  13.sp, Color.GRAY,  maxLines = 1)
+                    TextNode(BigText(item.ipa),  13.sp, Color.GRAY,  maxLines = 1)
                 )
             )
         ),
@@ -700,7 +700,7 @@ fun buildProfileCard(
             ConstraintChild(
                 id             = "avatar",
                 node           = ImageNode(
-                    RichImage.ResSource(avatarRes),
+                    BigImage.ResSource(avatarRes),
                     layoutWidth = LayoutDimension.Fixed(48.dp()),
                     layoutHeight = LayoutDimension.Fixed(48.dp()),
                 ),
@@ -711,7 +711,7 @@ fun buildProfileCard(
             ConstraintChild(
                 id           = "name",
                 node         = TextNode(
-                    text       = RichText(name),
+                    text       = BigText(name),
                     textSizePx = 16f.sp(),
                     color      = 0xFF111827.toInt(),
                     typeface   = Typeface.DEFAULT_BOLD,
@@ -726,7 +726,7 @@ fun buildProfileCard(
             ConstraintChild(
                 id             = "email",
                 node           = TextNode(
-                    text       = RichText(email),
+                    text       = BigText(email),
                     textSizePx = 13f.sp(),
                     color      = 0xFF6B7280.toInt(),
                     maxLines   = 1
@@ -776,7 +776,7 @@ fun buildChip(
             layoutWidth = LayoutDimension.Fixed(20.dp),
             layoutHeight = LayoutDimension.Fixed(20.dp),
         ),
-        TextNode(RichText(label), textSizePx, textColor, maxLines = 1)
+        TextNode(BigText(label), textSizePx, textColor, maxLines = 1)
     )
 )
 ```
@@ -811,9 +811,9 @@ fun buildLessonCard(
             orientation = Orientation.VERTICAL,
             gap         = 2.dp,
             children    = listOf(
-                TextNode(RichText(word),       16.sp, textPrimary,   maxLines = 1, typeface = Typeface.DEFAULT_BOLD),
-                TextNode(RichText(ipa),        13.sp, textSecondary, maxLines = 1),
-                TextNode(RichText(definition), 12.sp, textTertiary,  maxLines = 2),
+                TextNode(BigText(word),       16.sp, textPrimary,   maxLines = 1, typeface = Typeface.DEFAULT_BOLD),
+                TextNode(BigText(ipa),        13.sp, textSecondary, maxLines = 1),
+                TextNode(BigText(definition), 12.sp, textTertiary,  maxLines = 2),
             )
         )
     )
@@ -879,9 +879,9 @@ LinearNode(
     orientation = Orientation.VERTICAL,
     gap         = 0,
     children    = listOf(
-        TextNode(RichText("Tiêu đề"),  18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
+        TextNode(BigText("Tiêu đề"),  18.sp, Color.BLACK, typeface = Typeface.DEFAULT_BOLD),
         DividerNode(color = 0xFFE5E7EB.toInt(), thickness = 1.dp),
-        TextNode(RichText("Nội dung"), 14.sp, Color.DKGRAY),
+        TextNode(BigText("Nội dung"), 14.sp, Color.DKGRAY),
     )
 )
 ```
@@ -929,14 +929,14 @@ val Float.sp: Float get() = this * Resources.getSystem().displayMetrics.scaledDe
 val Int.sp: Float   get() = this.toFloat().sp
 
 // ── Tạo node ─────────────────────────────────────────────────────────────────
-val text  = TextNode(RichText("Hello"), 16.sp, Color.BLACK)
+val text  = TextNode(BigText("Hello"), 16.sp, Color.BLACK)
 val image = ImageNode.fromBitmap(
     bmp,
     layoutWidth = LayoutDimension.Fixed(48.dp),
     layoutHeight = LayoutDimension.Fixed(48.dp)
 )
 val icon  = ImageNode(
-    RichImage.ResSource(R.drawable.ic_star),
+    BigImage.ResSource(R.drawable.ic_star),
     layoutWidth = LayoutDimension.Fixed(24.dp),
     layoutHeight = LayoutDimension.Fixed(24.dp)
 )
@@ -952,7 +952,7 @@ val outline = OutlineNode(
     state = OutlineState.LOADING
 )
 val fullWidthTitle = TextNode(
-    RichText("Match parent"),
+    BigText("Match parent"),
     18.sp,
     Color.BLACK,
     layoutWidth = LayoutDimension.MatchParent

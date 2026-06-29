@@ -1,7 +1,7 @@
 package com.simple.ui.precompute.text.span
 
-import com.simple.ui.precompute.text.RichSpan
-import com.simple.ui.precompute.text.RichSpanConvert
+import com.simple.ui.precompute.text.BigSpan
+import com.simple.ui.precompute.text.BigSpanConvert
 
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
@@ -26,14 +26,14 @@ data class RoundedOutline(
     val cornerRadius: Float = 0f,
     val dashWidth: Float = 0f,
     val dashGap: Float = 0f
-) : RichSpan()
+) : BigSpan()
 
 @Keep
-@AutoService(RichSpanConvert::class)
-class RoundedOutlineSpanConvert : RichSpanConvert {
+@AutoService(BigSpanConvert::class)
+class RoundedOutlineSpanConvert : BigSpanConvert {
 
-    override fun getAndroidSpan(richSpan: RichSpan): CharacterStyle? {
-        return (richSpan as? RoundedOutline)?.let(::RoundedOutlineAndroidSpan)
+    override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
+        return (bigSpan as? RoundedOutline)?.let(::RoundedOutlineAndroidSpan)
     }
 }
 

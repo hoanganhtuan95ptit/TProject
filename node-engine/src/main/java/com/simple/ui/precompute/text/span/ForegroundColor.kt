@@ -1,20 +1,20 @@
 package com.simple.ui.precompute.text.span
 
-import com.simple.ui.precompute.text.RichSpan
-import com.simple.ui.precompute.text.RichSpanConvert
+import com.simple.ui.precompute.text.BigSpan
+import com.simple.ui.precompute.text.BigSpanConvert
 
 import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 
-data class ForegroundColor(val color: Int) : RichSpan()
+data class ForegroundColor(val color: Int) : BigSpan()
 
 @Keep
-@AutoService(RichSpanConvert::class)
-class ForegroundColorConvert : RichSpanConvert {
+@AutoService(BigSpanConvert::class)
+class ForegroundColorConvert : BigSpanConvert {
 
-    override fun getAndroidSpan(richSpan: RichSpan): CharacterStyle? {
-        return if (richSpan is ForegroundColor) ForegroundColorSpan(richSpan.color) else null
+    override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
+        return if (bigSpan is ForegroundColor) ForegroundColorSpan(bigSpan.color) else null
     }
 }

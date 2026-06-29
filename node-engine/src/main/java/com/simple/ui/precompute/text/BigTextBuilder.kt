@@ -1,11 +1,11 @@
 package com.simple.ui.precompute.text
 
-class RichTextBuilder(val text: String) {
+class BigTextBuilder(val text: String) {
 
-    val richStyles: ArrayList<RichStyle> = arrayListOf()
+    val bigStyles: ArrayList<BigStyle> = arrayListOf()
 
-    fun add(vararg richStyle: RichStyle) {
-        richStyles.addAll(richStyle)
+    fun add(vararg bigStyle: BigStyle) {
+        bigStyles.addAll(bigStyle)
     }
 
     /**
@@ -22,11 +22,11 @@ class RichTextBuilder(val text: String) {
      * }
      * ```
      */
-    fun withRange(start: Int, end: Int, vararg spans: RichSpan): RichTextBuilder {
+    fun withRange(start: Int, end: Int, vararg spans: BigSpan): BigTextBuilder {
         require(start >= 0 && end <= text.length && start < end) {
             "withRange: invalid range [$start, $end) for text length ${text.length}"
         }
-        richStyles.add(RichStyle(RichRange(start, end), spans.toList()))
+        bigStyles.add(BigStyle(BigRange(start, end), spans.toList()))
         return this
     }
 

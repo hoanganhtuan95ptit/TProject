@@ -9,12 +9,12 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.simple.ui.precompute.image.RichImage
+import com.simple.ui.precompute.image.BigImage
 import com.simple.ui.precompute.image.addTransform
 import com.simple.ui.precompute.image.build
 import com.simple.ui.precompute.image.toBuilder
 import com.simple.ui.precompute.text.span.ForegroundColor
-import com.simple.ui.precompute.text.RichText
+import com.simple.ui.precompute.text.BigText
 import com.simple.ui.precompute.text.span.TextSize
 import com.simple.ui.precompute.text.build
 import com.simple.ui.precompute.text.with
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val dp48 = (48 * dp).toInt()
-        val iconSource = RichImage(R.mipmap.ic_launcher)
+        val iconSource = BigImage(R.mipmap.ic_launcher)
 
         ImageLoader.install(GlideImageLoader(this))
 
@@ -169,7 +169,7 @@ class MainActivity : AppCompatActivity() {
             addCards(container, outlineSpecs)
 
             // ════════════════════════════════════════════════════════════════
-            // DEMO 6 — ImageNode + RichTransform (CircleCrop / RoundedCorners)
+            // DEMO 6 — ImageNode + BigTransform (CircleCrop / RoundedCorners)
             //   Cùng 1 nguồn ảnh, 3 cách biến đổi khác nhau xếp ngang.
             //   Engine không biết Glide — transforms được resolve ở loader.
             // ════════════════════════════════════════════════════════════════
@@ -243,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: RichImage,
+        iconSource: BigImage,
         iconSizePx: Int,
     ): LayoutNode = LinearNode(
         orientation = Orientation.HORIZONTAL,
@@ -260,9 +260,9 @@ class MainActivity : AppCompatActivity() {
                 orientation = Orientation.VERTICAL,
                 gap = dp(4),
                 children = listOf(
-                    TextNode(RichText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
-                    TextNode(RichText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
-                    TextNode(RichText(meaning), sp(12f), Color.GRAY, maxLines = 2),
+                    TextNode(BigText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                    TextNode(BigText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                    TextNode(BigText(meaning), sp(12f), Color.GRAY, maxLines = 2),
                 )
             )
         )
@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: RichImage,
+        iconSource: BigImage,
         iconSizePx: Int,
     ): LayoutNode = ConstraintNode(
         padding = EdgeInsets.all(dp(12)),
@@ -312,7 +312,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "badge",
                 node = TextNode(
-                    text = RichText("EN"),
+                    text = BigText("EN"),
                     textSizePx = sp(10f),
                     color = 0xFF6200EE.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -325,7 +325,7 @@ class MainActivity : AppCompatActivity() {
             // ③ Title — nằm giữa icon (start) và badge (end), fill hết chiều rộng
             ConstraintChild(
                 id = "title",
-                node = TextNode(RichText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
+                node = TextNode(BigText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
                 startToEndOf = "icon", marginStart = dp(12),
                 endToStartOf = "badge", marginEnd = dp(8),
                 topToTopOf = ConstraintNode.PARENT,
@@ -335,7 +335,7 @@ class MainActivity : AppCompatActivity() {
             // ④ IPA — ngay bên dưới title, căn trái/phải theo title
             ConstraintChild(
                 id = "ipa",
-                node = TextNode(RichText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
+                node = TextNode(BigText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
                 startToStartOf = "title",
                 endToEndOf = "title",
                 topToBottomOf = "title", marginTop = dp(4),
@@ -345,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             // ⑤ Meaning — ngay bên dưới ipa, căn trái/phải theo ipa
             ConstraintChild(
                 id = "meaning",
-                node = TextNode(RichText(meaning), sp(12f), Color.GRAY, maxLines = 2),
+                node = TextNode(BigText(meaning), sp(12f), Color.GRAY, maxLines = 2),
                 startToStartOf = "ipa",
                 endToEndOf = "ipa",
                 topToBottomOf = "ipa", marginTop = dp(4),
@@ -376,7 +376,7 @@ class MainActivity : AppCompatActivity() {
         name: String,
         tag: String,
         role: String,
-        avatarSource: RichImage,
+        avatarSource: BigImage,
         avatarSizePx: Int,
     ): LayoutNode = ConstraintNode(
         padding = EdgeInsets(left = dp(12), top = dp(12), right = dp(12), bottom = dp(12)),
@@ -397,7 +397,7 @@ class MainActivity : AppCompatActivity() {
             // ② Name — start leo vào END của avatar, top leo vào TOP của PARENT
             ConstraintChild(
                 id = "name",
-                node = TextNode(RichText(name), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
+                node = TextNode(BigText(name), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 1),
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
@@ -409,7 +409,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "tag",
                 node = TextNode(
-                    text = RichText(tag),
+                    text = BigText(tag),
                     textSizePx = sp(11f),
                     color = 0xFFFFFFFF.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -423,7 +423,7 @@ class MainActivity : AppCompatActivity() {
             //   → phụ thuộc tag: resolve ở pass 3
             ConstraintChild(
                 id = "role",
-                node = TextNode(RichText(role), sp(11f), Color.DKGRAY, maxLines = 1),
+                node = TextNode(BigText(role), sp(11f), Color.DKGRAY, maxLines = 1),
                 startToEndOf = "tag", marginStart = dp(6),
                 endToEndOf = ConstraintNode.PARENT,
                 topToTopOf = "tag",
@@ -434,7 +434,7 @@ class MainActivity : AppCompatActivity() {
             //   → phụ thuộc role: resolve ở pass 4
             ConstraintChild(
                 id = "bio",
-                node = TextNode(RichText("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)"), sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
+                node = TextNode(BigText("Tapped: view ③ leo ④ (ngang) → ⑤ leo ④ (dọc)"), sp(10f), 0xFF9E9E9E.toInt(), maxLines = 2),
                 startToEndOf = "avatar", marginStart = dp(12),
                 endToEndOf = ConstraintNode.PARENT,
                 topToBottomOf = "role", marginTop = dp(4),
@@ -445,7 +445,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_like",
                 node = TextNode(
-                    text = RichText("♥  Like"),
+                    text = BigText("♥  Like"),
                     textSizePx = sp(12f),
                     color = 0xFFFFFFFF.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -460,7 +460,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_share",
                 node = TextNode(
-                    text = RichText("↗  Share"),
+                    text = BigText("↗  Share"),
                     textSizePx = sp(12f),
                     color = 0xFF6200EE.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,
@@ -501,13 +501,13 @@ class MainActivity : AppCompatActivity() {
             ),
             ConstraintChild(
                 id = "tag_2",
-                node = TextNode(RichText("Android"), sp(14f), 0xFF4CAF50.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode(BigText("Android"), sp(14f), 0xFF4CAF50.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
                 startToEndOf = "tag_1", marginStart = dp(8),
                 topToTopOf = "tag_1",
             ),
             ConstraintChild(
                 id = "tag_3",
-                node = TextNode(RichText("WrapContent"), sp(14f), 0xFF2196F3.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode(BigText("WrapContent"), sp(14f), 0xFF2196F3.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
                 startToEndOf = "tag_2", marginStart = dp(8),
                 topToTopOf = "tag_2",
             )
@@ -524,7 +524,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "btn_confirm",
                 node = TextNode(
-                    text = RichText("NÚT CĂN GIỮA MÀN HÌNH"),
+                    text = BigText("NÚT CĂN GIỮA MÀN HÌNH"),
                     textSizePx = sp(14f), 
                     color = 0xFF6200EE.toInt(), 
                     typeface = Typeface.DEFAULT_BOLD,
@@ -538,7 +538,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     /**
-     * **ImageNode + RichTransform** card.
+     * **ImageNode + BigTransform** card.
      *
      * Cùng `R.mipmap.ic_launcher` nhưng 3 cách biến đổi khác nhau, xếp ngang:
      *  ① không transform → ảnh nguyên dạng.
@@ -546,14 +546,14 @@ class MainActivity : AppCompatActivity() {
      *  ③ [RoundedCorners]→ bo góc theo bán kính.
      *
      * Engine vẫn đo từng [ImageNode] với `Fixed(iconSizePx)` ở background.
-     * Lúc attach view, `GlideImageLoader` đọc `RichImage.transforms` rồi
-     * dịch sang `Transformation<Bitmap>` của Glide qua `RichTransformConverters`.
+     * Lúc attach view, `GlideImageLoader` đọc `BigImage.transforms` rồi
+     * dịch sang `Transformation<Bitmap>` của Glide qua `BigTransformConverters`.
      */
     private fun buildTransformCard(iconSizePx: Int): LayoutNode {
         val baseSource = R.mipmap.ic_launcher
         val rounded = dp(12)
 
-        fun item(label: String, image: RichImage) = LinearNode(
+        fun item(label: String, image: BigImage) = LinearNode(
             orientation = Orientation.VERTICAL,
             crossAlign = CrossAlign.CENTER,
             gap = dp(6),
@@ -564,7 +564,7 @@ class MainActivity : AppCompatActivity() {
                     layoutHeight = LayoutDimension.Fixed(iconSizePx),
                 ),
                 TextNode(
-                    text = RichText(label),
+                    text = BigText(label),
                     textSizePx = sp(11f),
                     color = Color.DKGRAY,
                     typeface = Typeface.DEFAULT_BOLD,
@@ -581,7 +581,7 @@ class MainActivity : AppCompatActivity() {
             children = listOf(
                 item(
                     label = "Original",
-                    image = RichImage(source = baseSource),
+                    image = BigImage(source = baseSource),
                 ),
                 item(
                     label = "CircleCrop",
@@ -637,14 +637,14 @@ class MainActivity : AppCompatActivity() {
                     layoutWidth = LayoutDimension.MatchParent,
                     children = listOf(
                         TextNode(
-                            text = RichText("Outline đang xử lý"),
+                            text = BigText("Outline đang xử lý"),
                             textSizePx = sp(16f),
                             color = Color.BLACK,
                             typeface = Typeface.DEFAULT_BOLD,
                             maxLines = 1
                         ),
                         TextNode(
-                            text = RichText("OutlineNode chỉ vẽ effect; content nằm ở sibling khác."),
+                            text = BigText("OutlineNode chỉ vẽ effect; content nằm ở sibling khác."),
                             textSizePx = sp(12f),
                             color = Color.DKGRAY,
                             maxLines = 2

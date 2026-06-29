@@ -9,7 +9,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.simple.ui.precompute.image.RichTransformConverters
+import com.simple.ui.precompute.image.BigTransformConverters
 import com.simple.ui.precompute.node.ImageSpec
 import java.util.WeakHashMap
 import java.util.concurrent.Executor
@@ -61,7 +61,7 @@ class GlideImageLoader(context: Context) : ImageLoader {
         if (spec.source.error != 0) {
             withModel = withModel.error(spec.source.error)
         }
-        RichTransformConverters.build(spec.source.transforms)?.let {
+        BigTransformConverters.build(spec.source.transforms)?.let {
             withModel = withModel.transform(it)
         }
 

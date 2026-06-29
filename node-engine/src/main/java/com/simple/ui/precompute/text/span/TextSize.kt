@@ -1,7 +1,7 @@
 package com.simple.ui.precompute.text.span
 
-import com.simple.ui.precompute.text.RichSpan
-import com.simple.ui.precompute.text.RichSpanConvert
+import com.simple.ui.precompute.text.BigSpan
+import com.simple.ui.precompute.text.BigSpanConvert
 
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.CharacterStyle
@@ -12,12 +12,12 @@ import com.google.auto.service.AutoService
  * Span đặt kích thước chữ tuyệt đối theo đơn vị dp (device-independent pixels).
  * Dùng để kiểm soát font size của title toolbar, header... từ ViewModel.
  */
-data class TextSize(val sizeDip: Int) : RichSpan()
+data class TextSize(val sizeDip: Int) : BigSpan()
 
 @Keep
-@AutoService(RichSpanConvert::class)
-class TextSizeConvert : RichSpanConvert {
-    override fun getAndroidSpan(richSpan: RichSpan): CharacterStyle? {
-        return if (richSpan is TextSize) AbsoluteSizeSpan(richSpan.sizeDip, true) else null
+@AutoService(BigSpanConvert::class)
+class TextSizeConvert : BigSpanConvert {
+    override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
+        return if (bigSpan is TextSize) AbsoluteSizeSpan(bigSpan.sizeDip, true) else null
     }
 }

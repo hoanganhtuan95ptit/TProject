@@ -6,7 +6,7 @@ import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.View
-import com.simple.ui.precompute.image.RichImage
+import com.simple.ui.precompute.image.BigImage
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.ImageLoader
 import com.simple.ui.precompute.MeasureContext
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RichImage   — nguồn ảnh public, tương tự RichText.
+// BigImage   — nguồn ảnh public, tương tự BigText.
 // ImageNode   — mô tả một ảnh cần layout.
 // ImageSpec   — kết quả sau khi đo; load ảnh qua ImageLoader/Glide.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
  *   hoặc bounded [LayoutDimension.MatchParent].
  */
 data class ImageNode(
-    val source: RichImage,
+    val source: BigImage,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
     override val padding: EdgeInsets = EdgeInsets.ZERO
@@ -89,7 +89,7 @@ class ImageSpec(
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val source: RichImage,
+    val source: BigImage,
     val dst: Rect
 ) : DrawSpec() {
 
@@ -226,14 +226,14 @@ class ImageSpec(
     }
 }
 
-private fun RichImage.intrinsicWidth(): Int? =
+private fun BigImage.intrinsicWidth(): Int? =
     when (val value = source) {
         is Bitmap -> value.width
         is Drawable -> value.intrinsicWidth.takeIf { it > 0 }
         else -> null
     }
 
-private fun RichImage.intrinsicHeight(): Int? =
+private fun BigImage.intrinsicHeight(): Int? =
     when (val value = source) {
         is Bitmap -> value.height
         is Drawable -> value.intrinsicHeight.takeIf { it > 0 }

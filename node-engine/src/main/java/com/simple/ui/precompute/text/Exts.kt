@@ -3,56 +3,56 @@ package com.simple.ui.precompute.text
 import android.widget.TextView
 import com.simple.ui.precompute.text.span.TextSize
 
-fun TextView.setText(text: RichText?) {
+fun TextView.setText(text: BigText?) {
 
     setText(text?.textChar)
 }
 
 
 private val EMPTY by lazy {
-    RichText("")
+    BigText("")
 }
 
 fun emptyText() = EMPTY
 
 
-fun String.toBuilder(): RichTextBuilder {
+fun String.toBuilder(): BigTextBuilder {
 
-    return RichTextBuilder(this)
+    return BigTextBuilder(this)
 }
 
-fun String.with(vararg spannable: RichSpan): RichTextBuilder {
+fun String.with(vararg spannable: BigSpan): BigTextBuilder {
 
     return toBuilder().with(*spannable)
 }
 
-fun String.withFirst(bold: String, vararg spannable: RichSpan): RichTextBuilder {
+fun String.withFirst(bold: String, vararg spannable: BigSpan): BigTextBuilder {
 
     return toBuilder().withFirst(bold, *spannable)
 }
 
-fun String.withAll(textUpdate: String, vararg spannable: RichSpan): RichTextBuilder {
+fun String.withAll(textUpdate: String, vararg spannable: BigSpan): BigTextBuilder {
 
     return toBuilder().withAll(textUpdate, *spannable)
 }
 
-fun RichTextBuilder.with(vararg spans: RichSpan): RichTextBuilder {
+fun BigTextBuilder.with(vararg spans: BigSpan): BigTextBuilder {
 
     return withFirst(text, *spans)
 }
 
-fun RichTextBuilder.withFirst(text: String, vararg spans: RichSpan): RichTextBuilder {
+fun BigTextBuilder.withFirst(text: String, vararg spans: BigSpan): BigTextBuilder {
 
     if (text.isEmpty()) return this
     val start = this.text.indexOf(text)
     if (start == -1) return this
 
-    add(RichStyle(RichRange(start, start + text.length), spans.toList()))
+    add(BigStyle(BigRange(start, start + text.length), spans.toList()))
 
     return this
 }
 
-fun RichTextBuilder.withAll(text: String, vararg spans: RichSpan): RichTextBuilder {
+fun BigTextBuilder.withAll(text: String, vararg spans: BigSpan): BigTextBuilder {
 
     if (text.isEmpty()) return this
     var index = this.text.indexOf(text)
@@ -61,75 +61,75 @@ fun RichTextBuilder.withAll(text: String, vararg spans: RichSpan): RichTextBuild
     val styleList = spans.toList()
     val length = text.length
     while (index != -1) {
-        add(RichStyle(RichRange(index, index + length), styleList))
+        add(BigStyle(BigRange(index, index + length), styleList))
         index = this.text.indexOf(text, index + length)
     }
 
     return this
 }
 
-fun RichTextBuilder.build(): RichText = RichText(
+fun BigTextBuilder.build(): BigText = BigText(
     text = text,
-    spans = richStyles
+    spans = bigStyles
 )
 
 
-fun String.withStyleDisplayLarge(): RichTextBuilder {
+fun String.withStyleDisplayLarge(): BigTextBuilder {
     return toBuilder().with(TextSize(57))
 }
 
-fun String.withStyleDisplayMedium(): RichTextBuilder {
+fun String.withStyleDisplayMedium(): BigTextBuilder {
     return toBuilder().with(TextSize(45))
 }
 
-fun String.withStyleDisplaySmall(): RichTextBuilder {
+fun String.withStyleDisplaySmall(): BigTextBuilder {
     return toBuilder().with(TextSize(36))
 }
 
-fun String.withStyleHeadlineLarge(): RichTextBuilder {
+fun String.withStyleHeadlineLarge(): BigTextBuilder {
     return toBuilder().with(TextSize(32))
 }
 
-fun String.withStyleHeadlineMedium(): RichTextBuilder {
+fun String.withStyleHeadlineMedium(): BigTextBuilder {
     return toBuilder().with(TextSize(28))
 }
 
-fun String.withStyleHeadlineSmall(): RichTextBuilder {
+fun String.withStyleHeadlineSmall(): BigTextBuilder {
     return toBuilder().with(TextSize(24))
 }
 
-fun String.withStyleTitleLarge(): RichTextBuilder {
+fun String.withStyleTitleLarge(): BigTextBuilder {
     return toBuilder().with(TextSize(22))
 }
 
-fun String.withStyleTitleMedium(): RichTextBuilder {
+fun String.withStyleTitleMedium(): BigTextBuilder {
     return toBuilder().with(TextSize(16))
 }
 
-fun String.withStyleTitleSmall(): RichTextBuilder {
+fun String.withStyleTitleSmall(): BigTextBuilder {
     return toBuilder().with(TextSize(14))
 }
 
-fun String.withStyleBodyLarge(): RichTextBuilder {
+fun String.withStyleBodyLarge(): BigTextBuilder {
     return toBuilder().with(TextSize(16))
 }
 
-fun String.withStyleBodyMedium(): RichTextBuilder {
+fun String.withStyleBodyMedium(): BigTextBuilder {
     return toBuilder().with(TextSize(14))
 }
 
-fun String.withStyleBodySmall(): RichTextBuilder {
+fun String.withStyleBodySmall(): BigTextBuilder {
     return toBuilder().with(TextSize(12))
 }
 
-fun String.withStyleLabelLarge(): RichTextBuilder {
+fun String.withStyleLabelLarge(): BigTextBuilder {
     return toBuilder().with(TextSize(14))
 }
 
-fun String.withStyleLabelMedium(): RichTextBuilder {
+fun String.withStyleLabelMedium(): BigTextBuilder {
     return toBuilder().with(TextSize(12))
 }
 
-fun String.withStyleLabelSmall(): RichTextBuilder {
+fun String.withStyleLabelSmall(): BigTextBuilder {
     return toBuilder().with(TextSize(11))
 }

@@ -80,14 +80,14 @@ data class ConstraintChild(
  *     children = listOf(
  *         ConstraintChild(
  *             id = "title",
- *             node = TextNode(RichText("Hello"), sp18, Color.BLACK),
+ *             node = TextNode(BigText("Hello"), sp18, Color.BLACK),
  *             startToStartOf = PARENT, endToEndOf = PARENT,
  *             topToTopOf = PARENT, marginTop = dp16,
  *             width = LayoutDimension.MatchParent,
  *         ),
  *         ConstraintChild(
  *             id = "subtitle",
- *             node = TextNode(RichText("World"), sp14, Color.GRAY),
+ *             node = TextNode(BigText("World"), sp14, Color.GRAY),
  *             startToStartOf = "title",
  *             topToBottomOf = "title", marginTop = dp8,
  *         ),

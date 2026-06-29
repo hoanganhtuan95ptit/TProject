@@ -8,7 +8,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
-import com.simple.ui.precompute.text.RichText
+import com.simple.ui.precompute.text.BigText
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
 import kotlin.math.ceil
@@ -25,7 +25,7 @@ import kotlin.math.ceil
  * typeface đã load) — engine không được đụng Context.
  */
 data class TextNode(
-    val text: RichText,
+    val text: BigText,
     val textSizePx: Float,
     val color: Int,
     val maxLines: Int = Int.MAX_VALUE,
