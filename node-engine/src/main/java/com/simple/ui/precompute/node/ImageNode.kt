@@ -14,18 +14,17 @@ import com.simple.ui.precompute.MeasureContext
 import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RichImage   — nguồn ảnh (sealed, immutable, thread-safe).
+// RichImage   — nguồn ảnh public, tương tự RichText.
 // ImageNode   — mô tả một ảnh cần layout.
-// ImageSpec   — kết quả sau khi đo; load ảnh async qua ImageLoader.
+// ImageSpec   — kết quả sau khi đo; load ảnh qua ImageLoader/Glide.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Mô tả một ảnh cần layout.
  *
- * - Với [RichImage.BitmapSource] hoặc [RichImage.DrawableSource] có intrinsic
- *   size, [LayoutDimension.WrapContent] sẽ lấy theo kích thước ảnh.
- * - Với các source async (Res/Path/Url/Drawable), cần có kích thước trước khi
- *   bitmap về: đặt [layoutWidth]/[layoutHeight] thành [LayoutDimension.Fixed]
+ *   [LayoutDimension.WrapContent] sẽ lấy theo kích thước ảnh.
+ * - Với các source không có intrinsic size sẵn (Res/Path/Url), cần có kích thước
+ *   trước khi ảnh về: đặt [layoutWidth]/[layoutHeight] thành [LayoutDimension.Fixed]
  *   hoặc bounded [LayoutDimension.MatchParent].
  */
 data class ImageNode(
@@ -44,8 +43,10 @@ data class ImageNode(
         val p = padding
 
         val rawW = layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
+            ?: source.intrinsicWidth()
             ?: 0
         val rawH = layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
+            ?: source.intrinsicHeight()
             ?: 0
 
         val w = layoutWidth.resolve(rawW + p.horizontal, c.maxWidth)
@@ -70,13 +71,11 @@ data class ImageNode(
 /**
  * Kết quả đo của [ImageNode].
  *
- * Không phải data class vì [bitmap] có thể được loader cập nhật
+ * Không phải data class vì [drawable] được loader cập nhật
  * sau khi spec đã measure xong (cho UrlSource / ResSource / ...).
  *
- * - Nếu source là [RichImage.BitmapSource]: [drawable] sẽ là `BitmapDrawable` và có ngay từ đầu.
- * - Nếu source là [RichImage.DrawableSource]: [drawable] có ngay từ đầu.
- * - Ngược lại: [drawable] có thể null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter;
- *   trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
+ * [drawable] null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter;
+ * trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
  */
 class ImageSpec(
     override val left: Int,
@@ -125,7 +124,7 @@ class ImageSpec(
         drawable?.callback = callback
         (drawable as? Animatable)?.start()
 
-        // Đã có ảnh (từ Bitmap/DrawableSource hoặc đã load xong từ trước) thì không cần load nữa.
+        // Đã có ảnh từ lần load trước thì không cần load lại.
         if (drawable != null) return
         val loader = ImageLoader.get() ?: return
         loader.load(this) { view.postInvalidateOnAnimation() }
@@ -177,3 +176,17 @@ class ImageSpec(
         return Rect(left, top, left + drawW, top + drawH)
     }
 }
+
+private fun RichImage.intrinsicWidth(): Int? =
+    when (val value = source) {
+        is Bitmap -> value.width
+        is Drawable -> value.intrinsicWidth.takeIf { it > 0 }
+        else -> null
+    }
+
+private fun RichImage.intrinsicHeight(): Int? =
+    when (val value = source) {
+        is Bitmap -> value.height
+        is Drawable -> value.intrinsicHeight.takeIf { it > 0 }
+        else -> null
+    }

@@ -3,10 +3,31 @@ package com.simple.launcher.retirement.utils.text
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.CharacterStyle
+import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 
+private val builtInRichSpanConvertList by lazy {
+    listOf(
+        BoldConvert(),
+        CustomFontConvert(),
+        ForegroundColorConvert(),
+        RelativeSizeConvert(),
+        RoundedOutlineSpanConvert(),
+        TextSizeConvert()
+    )
+}
+
 private val richSpanConvertList by lazy {
-    ServiceLoader.load(RichSpanConvert::class.java).toList()
+    (loadServiceRichSpanConverters() + builtInRichSpanConvertList)
+        .distinctBy { it.javaClass.name }
+}
+
+private fun loadServiceRichSpanConverters(): List<RichSpanConvert> {
+    return try {
+        ServiceLoader.load(RichSpanConvert::class.java).toList()
+    } catch (_: ServiceConfigurationError) {
+        emptyList()
+    }
 }
 
 // Cache KClass → RichSpanConvert: lần đầu O(n) scan, từ lần 2 trở đi O(1).
@@ -41,7 +62,10 @@ data class RichText(
     private fun RichSpan.toAndroidSpan(): CharacterStyle {
         val klass = this::class
         val cached = richSpanConvertCache[klass]
-        if (cached != null) return cached.getAndroidSpan(this)!!
+        if (cached != null) {
+            cached.getAndroidSpan(this)?.let { return it }
+            richSpanConvertCache.remove(klass)
+        }
 
         for (converter in richSpanConvertList) {
             val span = converter.getAndroidSpan(this)

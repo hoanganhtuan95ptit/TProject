@@ -1,13 +1,11 @@
 package com.simple.ui.precompute
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.simple.ui.precompute.node.ImageSpec
-import java.io.File
 import java.util.WeakHashMap
 
 /**
@@ -28,30 +26,38 @@ class GlideImageLoader(context: Context) : ImageLoader {
     private val targets = WeakHashMap<ImageSpec, CustomTarget<Drawable>>()
 
     override fun load(spec: ImageSpec, onReady: () -> Unit) {
-        // Có ảnh rồi (BitmapSource, DrawableSource hoặc đã load trước đó) → khỏi load.
+        // Có ảnh từ lần load trước thì khỏi load lại.
         if (spec.drawable != null) return
 
         val w = spec.dst.width().coerceAtLeast(1)
         val h = spec.dst.height().coerceAtLeast(1)
 
-        val request = Glide.with(appContext)
-            .asDrawable()
+        var withModel = Glide.with(appContext)
+            .load(spec.source.source)
             .override(w, h)
-
-        val withModel = when (val s = spec.source) {
-            is RichImage.BitmapSource -> request.load(s.bitmap)
-            is RichImage.ResSource -> request.load(s.resId)
-            is RichImage.PathSource -> request.load(File(s.path))
-            is RichImage.UrlSource -> request.load(s.url)
-            is RichImage.DrawableSource -> request.load(s.drawable)
+        if (spec.source.placeholder != 0) {
+            withModel = withModel.placeholder(spec.source.placeholder)
+        }
+        if (spec.source.error != 0) {
+            withModel = withModel.error(spec.source.error)
         }
 
         val target = object : CustomTarget<Drawable>(w, h) {
+            override fun onLoadStarted(placeholder: Drawable?) {
+                spec.drawable = placeholder
+                onReady()
+            }
+
             override fun onResourceReady(
                 resource: Drawable,
                 transition: Transition<in Drawable>?
             ) {
                 spec.drawable = resource
+                onReady()
+            }
+
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                spec.drawable = errorDrawable
                 onReady()
             }
 

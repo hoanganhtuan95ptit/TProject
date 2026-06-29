@@ -4,6 +4,7 @@ import org.gradle.api.publish.maven.MavenPublication
 plugins {
     alias(libs.plugins.android.library)
     `maven-publish`
+    alias(libs.plugins.android.legacy.kapt)
 }
 
 android {
@@ -56,5 +57,5 @@ dependencies {
     implementation(libs.glide)
     implementation(libs.androidx.core.ktx)
     compileOnly(libs.google.auto.service.annotations)
-    annotationProcessor(libs.google.auto.service)
+    kapt(libs.google.auto.service)
 }

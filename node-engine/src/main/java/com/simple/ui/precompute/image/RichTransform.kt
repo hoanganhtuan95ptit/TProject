@@ -1,4 +1,4 @@
-package com.simple.ui.precompute.image
+package com.simple.launcher.retirement.utils.image
 
 import android.graphics.drawable.Drawable
 import com.bumptech.glide.load.Transformation

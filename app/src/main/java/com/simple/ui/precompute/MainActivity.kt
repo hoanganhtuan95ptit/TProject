@@ -13,6 +13,7 @@ import com.simple.launcher.retirement.utils.image.RichImage
 import com.simple.launcher.retirement.utils.text.ForegroundColor
 import com.simple.launcher.retirement.utils.text.RichText
 import com.simple.launcher.retirement.utils.text.TextSize
+import com.simple.launcher.retirement.utils.text.build
 import com.simple.launcher.retirement.utils.text.with
 import com.simple.t.R
 import com.simple.ui.precompute.node.ConstraintChild
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val dp48 = (48 * dp).toInt()
-        val iconSource = RichImage.ResSource(R.mipmap.ic_launcher)
+        val iconSource = RichImage(R.mipmap.ic_launcher)
 
         ImageLoader.install(GlideImageLoader(this))
 
@@ -155,12 +156,12 @@ class MainActivity : AppCompatActivity() {
             // ════════════════════════════════════════════════════════════════
             addSectionLabel(container, "⑤ OutlineNode  —  viền loading bo góc")
 
-//            val outlineSpecs = withContext(Dispatchers.Default) {
-//                listOf(
-//                    LayoutEngine.measure(buildLoadingOutlineCard(), Constraints(cardWidth))
-//                )
-//            }
-//            addCards(container, outlineSpecs)
+            val outlineSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildLoadingOutlineCard(), Constraints(cardWidth))
+                )
+            }
+            addCards(container, outlineSpecs)
 
             // Footer
             container.addView(TextView(this@MainActivity).apply {
@@ -223,7 +224,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: RichImage<*>,
+        iconSource: RichImage,
         iconSizePx: Int,
     ): LayoutNode = LinearNode(
         orientation = Orientation.HORIZONTAL,
@@ -270,7 +271,7 @@ class MainActivity : AppCompatActivity() {
         word: String,
         ipa: String,
         meaning: String,
-        iconSource: RichImage<*>,
+        iconSource: RichImage,
         iconSizePx: Int,
     ): LayoutNode = ConstraintNode(
         padding = EdgeInsets.all(dp(12)),
@@ -469,7 +470,13 @@ class MainActivity : AppCompatActivity() {
         children = listOf(
             ConstraintChild(
                 id = "tag_1",
-                node = TextNode("Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)), sp(1f), 0xFFE91E63.toInt(), typeface = Typeface.DEFAULT_BOLD, padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))),
+                node = TextNode(
+                    "Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)).build(),
+                    sp(1f),
+                    0xFFE91E63.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    padding = EdgeInsets.symmetric(h = dp(12), v = dp(6))
+                ),
                 startToStartOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
             ),

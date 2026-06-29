@@ -1,6 +1,4 @@
-package com.simple.ui.precompute.image
-
-import com.simple.launcher.retirement.utils.image.RichImage
+package com.simple.launcher.retirement.utils.image
 
 private val EMPTY by lazy {
     RichImage("")
@@ -8,6 +6,11 @@ private val EMPTY by lazy {
 
 fun emptyImage() = EMPTY
 
+
+fun Int.toBuilder(): RichImageBuilder {
+
+    return RichImageBuilder(this)
+}
 
 fun String.toBuilder(): RichImageBuilder {
 
@@ -22,13 +25,13 @@ fun RichImageBuilder.addTransform(vararg transform: RichTransform): RichImageBui
 
 fun RichImageBuilder.setError(error: Int): RichImageBuilder {
 
-    this.error =  error
+    this.error = error
     return this
 }
 
 fun RichImageBuilder.setPlaceholder(placeholder: Int): RichImageBuilder {
 
-    this.placeholder =  placeholder
+    this.placeholder = placeholder
     return this
 }
 
@@ -38,4 +41,3 @@ fun RichImageBuilder.build() = RichImage(
     placeholder = placeholder,
     transforms = transforms
 )
-
