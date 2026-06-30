@@ -5,13 +5,12 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.view.View
-import com.simple.ui.precompute.image.BigImage
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.ImageCache
 import com.simple.ui.precompute.ImageLoader
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.image.BigImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -116,7 +115,6 @@ class ImageSpec(
             // hơn nhiều so với dispatch sang Default rồi bounce về Main.
             value.bounds = value.centerInside(dst)
 
-            Log.d("tuanha", "drawable: ")
             // Chỉ gắn callback + start animation khi view đang attached.
             if (attachedView != null) {
                 value.callback = drawableCallback
@@ -140,25 +138,21 @@ class ImageSpec(
     private val drawableCallback: Drawable.Callback by lazy(LazyThreadSafetyMode.NONE) {
         object : Drawable.Callback {
             override fun invalidateDrawable(who: Drawable) {
-                Log.d("tuanha", "invalidateDrawable: ")
                 attachedView?.postInvalidateOnAnimation()
             }
 
             override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
-                Log.d("tuanha", "scheduleDrawable: ")
                 val delay = `when` - android.os.SystemClock.uptimeMillis()
                 attachedView?.postDelayed(what, delay)
             }
 
             override fun unscheduleDrawable(who: Drawable, what: Runnable) {
-                Log.d("tuanha", "unscheduleDrawable: ")
                 attachedView?.removeCallbacks(what)
             }
         }
     }
 
     override fun onDrawContent(canvas: Canvas) {
-        Log.d("tuanha", "onDrawContent: ")
         drawable?.draw(canvas)
     }
 

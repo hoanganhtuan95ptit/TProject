@@ -62,8 +62,8 @@ class GlideImageLoader(context: Context) : ImageLoader {
         if (spec.source.error != 0) {
             withModel = withModel.error(spec.source.error)
         }
-        BigTransformConverters.build(spec.source.transforms)?.let {
-            withModel = withModel.transform(it)
+        BigTransformConverters.build(spec.source.transforms).toTypedArray().let {
+            withModel = withModel.transform(*it)
         }
 
         val target = object : CustomTarget<Drawable>(w, h) {

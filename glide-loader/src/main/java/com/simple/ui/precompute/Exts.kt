@@ -7,8 +7,11 @@ import com.simple.ui.precompute.image.BigTransformConverters
 
 
 fun ImageView.setImage(image: BigImage) {
+
+    val transforms = BigTransformConverters.build(image.transforms).toTypedArray()
+
     Glide.with(context)
         .load(image.source)
-        .transform(BigTransformConverters.build(image.transforms))
+        .transform(*transforms)
         .into(this)
 }

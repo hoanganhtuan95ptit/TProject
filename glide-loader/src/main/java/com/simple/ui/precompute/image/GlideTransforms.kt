@@ -1,8 +1,8 @@
 package com.simple.ui.precompute.image
 
 import android.graphics.Bitmap
-import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.Transformation
+import com.simple.ui.precompute.image.BigTransformConverters.build
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
@@ -39,14 +39,9 @@ object BigTransformConverters {
      * Build [Transformation] tổng hợp từ [BigImage.transforms]; trả về `null`
      * nếu list rỗng hoặc không có converter nào match.
      */
-    fun build(transforms: List<BigTransform>): Transformation<Bitmap>? {
-        if (transforms.isEmpty()) return null
-        val mapped = transforms.mapNotNull { it.toGlideTransformation() }
-        return when (mapped.size) {
-            0 -> null
-            1 -> mapped[0]
-            else -> MultiTransformation(*mapped.toTypedArray())
-        }
+    fun build(transforms: List<BigTransform>): List<Transformation<Bitmap>> {
+        if (transforms.isEmpty()) return emptyList()
+        return transforms.mapNotNull { it.toGlideTransformation() }
     }
 
     private fun BigTransform.toGlideTransformation(): Transformation<Bitmap>? {
