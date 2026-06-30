@@ -18,38 +18,26 @@ class PrecomputedView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+) : View(context, attrs, defStyleAttr), PrecomputedHost {
 
-    var spec: DrawSpec? = null
-        set(value) {
-            if (field === value) return
-            val old = field
-            if (isAttachedToWindow) old?.onDetachedFromWindow(this)
-            field = value
-            if (old?.width != value?.width || old?.height != value?.height) {
-                requestLayout()
-            } else {
-                postInvalidateOnAnimation()
-            }
-            if (isAttachedToWindow) value?.onAttachedToWindow(this)
-        }
+    override val delegate: PrecomputedDelegate = PrecomputedDelegate(this, context, attrs)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val s = spec
+        val s = delegate.spec
         setMeasuredDimension(s?.width ?: 0, s?.height ?: 0)
     }
 
     override fun onDraw(canvas: Canvas) {
-        spec?.draw(canvas)
+        delegate.onDraw(canvas)
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        spec?.onAttachedToWindow(this)
+        delegate.onAttachedToWindow()
     }
 
     override fun onDetachedFromWindow() {
-        spec?.onDetachedFromWindow(this)
+        delegate.onDetachedFromWindow()
         super.onDetachedFromWindow()
     }
 }

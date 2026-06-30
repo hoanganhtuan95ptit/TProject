@@ -5,9 +5,11 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.view.View
 import com.simple.ui.precompute.image.BigImage
 import com.simple.ui.precompute.DrawSpec
+import com.simple.ui.precompute.ImageCache
 import com.simple.ui.precompute.ImageLoader
 import com.simple.ui.precompute.MeasureContext
 import kotlinx.coroutines.CoroutineScope
@@ -78,8 +80,10 @@ data class ImageNode(
  * Không phải data class vì [drawable] được loader cập nhật
  * sau khi spec đã measure xong (cho UrlSource / ResSource / ...).
  *
- * [drawable] null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter;
- * trong khi chờ, spec chỉ chiếm chỗ chứ không vẽ gì.
+ * [drawable] null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter,
+ * hoặc cho tới khi [com.simple.ui.precompute.ImageCache] trả về hit đồng bộ
+ * ngay tại [onAttachedToWindow] — case sau giúp tránh flicker khi spec mới
+ * thay thế spec cũ cùng [source].
  *
  * Threading: setter của [drawable] luôn được gọi trên main (Glide CustomTarget
  * callbacks + onAttach), [onDrawContent] cũng ở main → không cần @Volatile.
@@ -112,6 +116,7 @@ class ImageSpec(
             // hơn nhiều so với dispatch sang Default rồi bounce về Main.
             value.bounds = value.centerInside(dst)
 
+            Log.d("tuanha", "drawable: ")
             // Chỉ gắn callback + start animation khi view đang attached.
             if (attachedView != null) {
                 value.callback = drawableCallback
@@ -135,21 +140,25 @@ class ImageSpec(
     private val drawableCallback: Drawable.Callback by lazy(LazyThreadSafetyMode.NONE) {
         object : Drawable.Callback {
             override fun invalidateDrawable(who: Drawable) {
+                Log.d("tuanha", "invalidateDrawable: ")
                 attachedView?.postInvalidateOnAnimation()
             }
 
             override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
+                Log.d("tuanha", "scheduleDrawable: ")
                 val delay = `when` - android.os.SystemClock.uptimeMillis()
                 attachedView?.postDelayed(what, delay)
             }
 
             override fun unscheduleDrawable(who: Drawable, what: Runnable) {
+                Log.d("tuanha", "unscheduleDrawable: ")
                 attachedView?.removeCallbacks(what)
             }
         }
     }
 
     override fun onDrawContent(canvas: Canvas) {
+        Log.d("tuanha", "onDrawContent: ")
         drawable?.draw(canvas)
     }
 
@@ -165,6 +174,15 @@ class ImageSpec(
 
         // Đã có ảnh từ lần load trước thì không cần load lại.
         if (drawable != null) return
+
+        // Cache hit: gán drawable sync, bỏ qua hoàn toàn vòng load qua Glide.
+        // Đây là đường tránh-flicker chính khi spec mới có cùng [source] với
+        // ảnh đã load trước đó (kể cả ở view khác).
+        ImageCache.get(source)?.let {
+            drawable = it
+            return
+        }
+
         val loader = ImageLoader.get() ?: return
         // Load off-main; nếu detach trước khi xong sẽ tự cancel theo scope.
         s.launch(Dispatchers.Default) {
@@ -191,9 +209,8 @@ class ImageSpec(
 
     /**
      * Không copy [drawable] sang spec mới: withPosition luôn được gọi trên spec
-     * vừa-measure (chưa attach, chưa có drawable). Việc share drawable giữa
-     * nhiều spec là latent risk vì khi spec cũ detach sẽ stop animation /
-     * clear callback của cùng object — ảnh hưởng spec mới.
+     * vừa-measure (chưa attach, chưa có drawable). State liên-spec được xử lý
+     * qua [ImageCache] ở [onAttachedToWindow] thay vì truyền tay giữa các spec.
      */
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
         ImageSpec(newLeft, newTop, width, height, source, dst)

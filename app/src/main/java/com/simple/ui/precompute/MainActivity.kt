@@ -182,9 +182,27 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, transformSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 7 — PhoneticChip
+            //   Chuyển đổi từ XML:
+            //     ConstraintLayout (wrap_content)
+            //       └─ View background #55BB55 (fill toàn bộ)
+            //       └─ LinearLayout horizontal (padding 8dp/4dp)
+            //            ├─ TextView  (phonetic text)
+            //            └─ ImageView (10×24dp, marginStart 4dp)
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑦ PhoneticChip  —  từ XML → Node")
+
+            val chipSpecs = withContext(Dispatchers.Default) {
+                items.map { (text, ipa, _) ->
+                    LayoutEngine.measure(buildPhoneticChip("$text\n$ipa"), Constraints(cardWidth))
+                }
+            }
+            addCards(container, chipSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2 + profiles.size + 4} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform, measured on bg thread"
+                text = "${items.size * 2 + profiles.size + 4 + items.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -598,6 +616,66 @@ class MainActivity : AppCompatActivity() {
             )
         )
     }
+
+    /**
+     * **PhoneticChip** — chuyển đổi từ XML ConstraintLayout.
+     *
+     * ```
+     * ┌──────────────────────┐
+     * │ /həˈloʊ/  [🔊]      │  ← nền xanh #55BB55
+     * └──────────────────────┘
+     * ```
+     *
+     * Cấu trúc node:
+     * - [ConstraintNode] wrap_content (root)
+     *   - "bg"      → [OutlineNode] fill toàn bộ, màu #55BB55, không có stroke
+     *   - "content" → [LinearNode] horizontal + gap 4dp + padding 8/4dp
+     *                   ├─ [TextNode]  phonetic text
+     *                   └─ [ImageNode] icon 10×24dp
+     */
+    private fun buildPhoneticChip(phonetic: String): LayoutNode = ConstraintNode(
+        children = listOf(
+            ConstraintChild(
+                id = "bg",
+                node = OutlineNode(
+                    backgroundColor = Color.parseColor("#55BB55"),
+                    strokeWidth = 0f,
+                    layoutWidth = LayoutDimension.MatchParent,
+                    layoutHeight = LayoutDimension.MatchParent,
+                ),
+                startToStartOf = "content",
+                endToEndOf = "content",
+                topToTopOf = "content",
+                bottomToBottomOf = "content",
+                width = LayoutDimension.MatchParent,
+                height = LayoutDimension.MatchParent,
+            ),
+            ConstraintChild(
+                id = "content",
+                node = LinearNode(
+                    orientation = Orientation.HORIZONTAL,
+                    crossAlign = CrossAlign.CENTER,
+                    gap = dp(4), // marginStart của ImageView
+                    padding = EdgeInsets.symmetric(h = dp(8), v = dp(4)),
+                    children = listOf(
+                        TextNode(
+                            text = BigText(phonetic),
+                            textSizePx = sp(14f),
+                            color = Color.WHITE,
+                        ),
+                        // ic_volume_24dp chưa có trong project → dùng ic_launcher làm placeholder
+                        ImageNode(
+                            source = BigImage(R.mipmap.ic_launcher),
+                            layoutWidth = LayoutDimension.Fixed(dp(10)),
+                            layoutHeight = LayoutDimension.Fixed(dp(24)),
+                        ),
+                    ),
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+            ),
+        )
+    )
 
     /**
      * **OutlineNode** loading card — effect là sibling phủ lên content.

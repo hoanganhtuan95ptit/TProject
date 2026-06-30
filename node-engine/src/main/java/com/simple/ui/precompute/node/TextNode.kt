@@ -2,15 +2,16 @@ package com.simple.ui.precompute.node
 
 import android.content.res.Resources
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
-import com.simple.ui.precompute.text.BigText
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.text.BigText
 import kotlin.math.ceil
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,8 +27,8 @@ import kotlin.math.ceil
  */
 data class TextNode(
     val text: BigText,
-    val textSizePx: Float,
-    val color: Int,
+    val textSizePx: Float = 1f,
+    val color: Int = Color.TRANSPARENT,
     val maxLines: Int = Int.MAX_VALUE,
     val typeface: Typeface? = null,
     val lineSpacingMul: Float = 1f,

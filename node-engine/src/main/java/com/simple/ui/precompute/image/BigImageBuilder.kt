@@ -7,7 +7,7 @@ class BigImageBuilder(val source: Any) {
 
     val transforms: ArrayList<BigTransform> = arrayListOf()
 
-    fun add(vararg bigTransforms: BigTransform) {
+    internal fun add(vararg bigTransforms: BigTransform) {
         transforms.addAll(bigTransforms)
     }
 }

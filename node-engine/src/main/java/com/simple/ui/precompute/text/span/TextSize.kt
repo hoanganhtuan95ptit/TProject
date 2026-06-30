@@ -12,12 +12,12 @@ import com.google.auto.service.AutoService
  * Span đặt kích thước chữ tuyệt đối theo đơn vị dp (device-independent pixels).
  * Dùng để kiểm soát font size của title toolbar, header... từ ViewModel.
  */
-data class TextSize(val sizeDip: Int) : BigSpan()
+data class TextSize(val sizePx: Int) : BigSpan()
 
 @Keep
 @AutoService(BigSpanConvert::class)
 class TextSizeConvert : BigSpanConvert {
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return if (bigSpan is TextSize) AbsoluteSizeSpan(bigSpan.sizeDip, true) else null
+        return if (bigSpan is TextSize) AbsoluteSizeSpan(bigSpan.sizePx, false) else null
     }
 }

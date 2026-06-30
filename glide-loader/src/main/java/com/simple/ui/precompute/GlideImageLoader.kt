@@ -1,5 +1,6 @@
 package com.simple.ui.precompute
 
+import android.app.Application
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Handler
@@ -32,7 +33,7 @@ import java.util.concurrent.Executor
  */
 class GlideImageLoader(context: Context) : ImageLoader {
 
-    private val appContext = context.applicationContext
+    private val appContext = context as? Application ?: context.applicationContext
 
     private val handlerThread = HandlerThread("GlideImageLoader").apply { start() }
     private val bgHandler = Handler(handlerThread.looper)
@@ -67,14 +68,22 @@ class GlideImageLoader(context: Context) : ImageLoader {
 
         val target = object : CustomTarget<Drawable>(w, h) {
             override fun onLoadStarted(placeholder: Drawable?) {
-                spec.drawable = placeholder
-                onReady()
+                // Chỉ set placeholder khi spec chưa có gì để vẽ. Tránh clobber
+                // drawable cũ (hit cache hoặc đã load lần trước) bằng placeholder
+                // — đó là nguồn gốc của flicker.
+                if (spec.drawable == null && placeholder != null) {
+                    spec.drawable = placeholder
+                    onReady()
+                }
             }
 
             override fun onResourceReady(
                 resource: Drawable,
                 transition: Transition<in Drawable>?
             ) {
+                // Cache trước khi gán drawable: lần attach sau cho cùng [source]
+                // sẽ hit cache đồng bộ và bỏ qua hoàn toàn vòng Glide.
+                ImageCache.put(spec.source, resource)
                 spec.drawable = resource
                 onReady()
             }
