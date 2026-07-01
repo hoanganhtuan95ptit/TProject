@@ -28,27 +28,27 @@ fun BigText.toBuilder(): BigTextBuilder {
     }
 }
 
-fun String.with(vararg spannable: BigSpan): BigTextBuilder {
+fun String.with(vararg spannable: BigImageSpan): BigTextBuilder {
 
     return toBuilder().with(*spannable)
 }
 
-fun String.withFirst(bold: String, vararg spannable: BigSpan): BigTextBuilder {
+fun String.withFirst(bold: String, vararg spannable: BigImageSpan): BigTextBuilder {
 
     return toBuilder().withFirst(bold, *spannable)
 }
 
-fun String.withAll(textUpdate: String, vararg spannable: BigSpan): BigTextBuilder {
+fun String.withAll(textUpdate: String, vararg spannable: BigImageSpan): BigTextBuilder {
 
     return toBuilder().withAll(textUpdate, *spannable)
 }
 
-fun BigTextBuilder.with(vararg spans: BigSpan): BigTextBuilder {
+fun BigTextBuilder.with(vararg spans: BigImageSpan): BigTextBuilder {
 
     return withFirst(text, *spans)
 }
 
-fun BigTextBuilder.withFirst(text: String, vararg spans: BigSpan): BigTextBuilder {
+fun BigTextBuilder.withFirst(text: String, vararg spans: BigImageSpan): BigTextBuilder {
 
     if (text.isEmpty()) return this
     val start = this.text.indexOf(text)
@@ -59,7 +59,7 @@ fun BigTextBuilder.withFirst(text: String, vararg spans: BigSpan): BigTextBuilde
     return this
 }
 
-fun BigTextBuilder.withAll(text: String, vararg spans: BigSpan): BigTextBuilder {
+fun BigTextBuilder.withAll(text: String, vararg spans: BigImageSpan): BigTextBuilder {
 
     if (text.isEmpty()) return this
     var index = this.text.indexOf(text)

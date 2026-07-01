@@ -1,4 +1,4 @@
-package com.simple.ui.precompute
+package com.simple.ui.precompute.loader
 
 import android.app.Application
 import android.content.Context
@@ -10,7 +10,6 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.simple.ui.precompute.image.BigTransformConverters
 import com.simple.ui.precompute.node.ImageSpec
 import java.util.WeakHashMap
 import java.util.concurrent.Executor
@@ -94,8 +93,6 @@ class GlideImageLoader(context: Context) : ImageLoader {
 
     private fun createRequest(spec: ImageSpec, size: RequestSize): RequestBuilder<Drawable> {
 
-        // Glide.with(applicationContext) an toàn từ bg thread (lifecycle
-        // gắn với application, không phải Activity/Fragment).
         var withModel: RequestBuilder<Drawable> = Glide.with(appContext)
             .load(spec.source.source)
             .override(size.width, size.height)
@@ -110,9 +107,9 @@ class GlideImageLoader(context: Context) : ImageLoader {
             withModel = withModel.error(spec.source.error)
         }
 
-        BigTransformConverters.build(spec.source.transforms).toTypedArray().let {
+        if(spec.source.transforms.isNotEmpty()){
 
-            withModel = withModel.transform(*it)
+            withModel = withModel.transform(*spec.source.transforms)
         }
 
         return withModel
@@ -165,7 +162,6 @@ class GlideImageLoader(context: Context) : ImageLoader {
 
     private fun ImageSpec.setLoadedDrawable(resource: Drawable, onReady: () -> Unit) {
 
-        ImageCache.put(source, resource)
         drawable = resource
         onReady()
     }

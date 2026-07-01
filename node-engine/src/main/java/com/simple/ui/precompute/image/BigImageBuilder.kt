@@ -5,9 +5,9 @@ class BigImageBuilder(val source: Any) {
     var error: Int = 0
     var placeholder: Int = 0
 
-    val transforms: ArrayList<BigTransform> = arrayListOf()
+    val transforms: ArrayList<BigImageTransform> = arrayListOf()
 
-    internal fun add(vararg bigTransforms: BigTransform) {
+    internal fun add(vararg bigTransforms: BigImageTransform) {
         transforms.addAll(bigTransforms)
     }
 }

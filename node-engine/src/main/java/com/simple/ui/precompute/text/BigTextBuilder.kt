@@ -22,7 +22,7 @@ class BigTextBuilder(val text: String) {
      * }
      * ```
      */
-    fun withRange(start: Int, end: Int, vararg spans: BigSpan): BigTextBuilder {
+    fun withRange(start: Int, end: Int, vararg spans: BigImageSpan): BigTextBuilder {
         require(start >= 0 && end <= text.length && start < end) {
             "withRange: invalid range [$start, $end) for text length ${text.length}"
         }

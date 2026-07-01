@@ -1,7 +1,7 @@
 package com.simple.ui.precompute.text.span
 
-import com.simple.ui.precompute.text.BigSpan
-import com.simple.ui.precompute.text.BigSpanConvert
+import com.simple.ui.precompute.text.BigImageSpan
+import com.simple.ui.precompute.text.BigImageSpanConvert
 
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
@@ -26,13 +26,13 @@ data class BigRoundedOutline(
     val cornerRadius: Float = 0f,
     val dashWidth: Float = 0f,
     val dashGap: Float = 0f
-) : BigSpan()
+) : BigImageSpan
 
 @Keep
-@AutoService(BigSpanConvert::class)
-class BigRoundedOutlineConvert : BigSpanConvert {
+@AutoService(BigImageSpanConvert::class)
+class BigRoundedOutlineConvert : BigImageSpanConvert {
 
-    override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
+    override fun convert(bigSpan: BigImageSpan): CharacterStyle? {
         return (bigSpan as? BigRoundedOutline)?.let(::RoundedOutlineAndroidSpan)
     }
 }

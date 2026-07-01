@@ -1,7 +1,7 @@
 package com.simple.ui.precompute.text.span
 
-import com.simple.ui.precompute.text.BigSpan
-import com.simple.ui.precompute.text.BigSpanConvert
+import com.simple.ui.precompute.text.BigImageSpan
+import com.simple.ui.precompute.text.BigImageSpanConvert
 
 import android.graphics.Typeface
 import android.text.TextPaint
@@ -15,12 +15,12 @@ import com.google.auto.service.AutoService
  * Dùng để kiểm soát font của title toolbar, header... từ ViewModel.
  * Ví dụ: CustomFont(Typeface.create("sans-serif-medium", Typeface.NORMAL))
  */
-data class BigCustomFont(val typeface: Typeface) : BigSpan()
+data class BigCustomFont(val typeface: Typeface) : BigImageSpan
 
 @Keep
-@AutoService(BigSpanConvert::class)
-class BigCustomFontConvert : BigSpanConvert {
-    override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
+@AutoService(BigImageSpanConvert::class)
+class BigCustomFontConvert : BigImageSpanConvert {
+    override fun convert(bigSpan: BigImageSpan): CharacterStyle? {
         return (bigSpan as? BigCustomFont)?.let { CustomFontAndroidSpan(it.typeface) }
     }
 }

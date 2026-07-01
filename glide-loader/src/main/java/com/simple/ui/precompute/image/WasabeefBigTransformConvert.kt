@@ -15,10 +15,10 @@ import jp.wasabeef.glide.transformations.GrayscaleTransformation
 import jp.wasabeef.glide.transformations.MaskTransformation
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation
 
-@AutoService(BigTransformConvert::class)
-class WasabeefBigTransformConvert : BigTransformConvert {
+@AutoService(BigImageTransformConvert::class)
+class WasabeefBigTransformConvert : BigImageTransformConvert {
 
-    override fun convert(transform: BigTransform): Transformation<Bitmap>? = when (transform) {
+    override fun convert(transform: BigImageTransform): Transformation<Bitmap>? = when (transform) {
         is CircleCrop -> CropCircleTransformation()
         is CropSquare -> CropSquareTransformation()
         is Crop -> CropTransformation(

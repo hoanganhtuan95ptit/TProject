@@ -53,6 +53,9 @@ afterEvaluate {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    
+    implementation(libs.glide)
+
     compileOnly(libs.google.auto.service.annotations)
     kapt(libs.google.auto.service)
 }

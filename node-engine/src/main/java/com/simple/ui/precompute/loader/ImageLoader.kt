@@ -1,4 +1,4 @@
-package com.simple.ui.precompute
+package com.simple.ui.precompute.loader
 
 import com.simple.ui.precompute.node.ImageSpec
 import java.util.concurrent.Executor

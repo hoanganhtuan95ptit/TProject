@@ -1,17 +1,17 @@
 package com.simple.ui.precompute.image
 
 /** Crop ảnh về hình tròn. */
-object CircleCrop : BigTransform()
+object CircleCrop : BigImageTransform
 
 /** Crop ảnh về hình vuông bằng cạnh lớn hơn của output. */
-object CropSquare : BigTransform()
+object CropSquare : BigImageTransform
 
 /** Crop ảnh về kích thước chỉ định. `0` nghĩa là dùng kích thước ảnh gốc ở chiều đó. */
 data class Crop(
     val widthPx: Int,
     val heightPx: Int,
     val cropType: CropType = CropType.CENTER
-) : BigTransform()
+) : BigImageTransform
 
 enum class CropType {
     TOP,
@@ -23,14 +23,14 @@ enum class CropType {
 data class CircleCropWithBorder(
     val borderSizePx: Int,
     val borderColor: Int
-) : BigTransform()
+) : BigImageTransform
 
 /** Bo góc theo bán kính, margin và kiểu góc. */
 data class RoundedCorners(
     val radiusPx: Int,
     val marginPx: Int = 0,
     val cornerType: CornerType = CornerType.ALL
-) : BigTransform()
+) : BigImageTransform
 
 enum class CornerType {
     ALL,
@@ -54,17 +54,17 @@ enum class CornerType {
 data class Blur(
     val radius: Int = 25,
     val sampling: Int = 1
-) : BigTransform()
+) : BigImageTransform
 
 /** Áp màu lên ảnh bằng PorterDuff SRC_ATOP. */
 data class ColorFilter(
     val color: Int
-) : BigTransform()
+) : BigImageTransform
 
 /** Chuyển ảnh sang grayscale. */
-object Grayscale : BigTransform()
+object Grayscale : BigImageTransform
 
 /** Áp mask drawable resource lên ảnh. */
 data class Mask(
     val maskResId: Int
-) : BigTransform()
+) : BigImageTransform

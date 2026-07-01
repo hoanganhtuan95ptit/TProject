@@ -1,5 +1,18 @@
 package com.simple.ui.precompute.image
 
+import android.widget.ImageView
+import com.bumptech.glide.Glide
+
+
+fun ImageView.setImage(image: BigImage) {
+
+    Glide.with(context)
+        .load(image.source)
+        .transform(*image.transforms)
+        .into(this)
+}
+
+
 private val EMPTY by lazy {
     BigImage("")
 }
@@ -17,7 +30,7 @@ fun String.toBuilder(): BigImageBuilder {
     return BigImageBuilder(this)
 }
 
-fun BigImageBuilder.addTransform(vararg transform: BigTransform): BigImageBuilder {
+fun BigImageBuilder.addTransform(vararg transform: BigImageTransform): BigImageBuilder {
 
     add(*transform)
     return this
@@ -39,5 +52,5 @@ fun BigImageBuilder.build() = BigImage(
     source = source,
     error = error,
     placeholder = placeholder,
-    transforms = transforms
+    bigTransforms = transforms
 )

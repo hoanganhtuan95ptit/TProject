@@ -7,8 +7,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.View
 import com.simple.ui.precompute.DrawSpec
-import com.simple.ui.precompute.ImageCache
-import com.simple.ui.precompute.ImageLoader
+import com.simple.ui.precompute.loader.ImageLoader
 import com.simple.ui.precompute.MeasureContext
 import com.simple.ui.precompute.image.BigImage
 import kotlinx.coroutines.CoroutineScope
@@ -79,8 +78,7 @@ data class ImageNode(
  * Không phải data class vì [drawable] được loader cập nhật
  * sau khi spec đã measure xong (cho UrlSource / ResSource / ...).
  *
- * [drawable] null cho tới khi [com.simple.ui.precompute.ImageLoader] gọi setter,
- * hoặc cho tới khi [com.simple.ui.precompute.ImageCache] trả về hit đồng bộ
+ * [drawable] null cho tới khi [ImageLoader] gọi setter,
  * ngay tại [onAttachedToWindow] — case sau giúp tránh flicker khi spec mới
  * thay thế spec cũ cùng [source].
  *
@@ -170,14 +168,6 @@ class ImageSpec(
         // Đã có ảnh từ lần load trước thì không cần load lại.
         if (drawable != null) return
 
-        // Cache hit: gán drawable sync, bỏ qua hoàn toàn vòng load qua Glide.
-        // Đây là đường tránh-flicker chính khi spec mới có cùng [source] với
-        // ảnh đã load trước đó (kể cả ở view khác).
-//        ImageCache.get(source)?.let {
-//            drawable = it
-//            return
-//        }
-
         val loader = ImageLoader.get() ?: return
         // Load off-main; nếu detach trước khi xong sẽ tự cancel theo scope.
         s.launch(Dispatchers.Default) {
@@ -210,7 +200,6 @@ class ImageSpec(
      * phá vỡ invariant đó: khi node không đổi (cache hit) nhưng vị trí bị
      * parent xê dịch (vd sibling ở trên thay đổi kích thước), engine trả
      * `cached.withPosition(x, y)` — nếu không copy drawable, đường tránh-
-     * flicker này mất tác dụng (spec mới phải đi qua ImageCache lookup,
      * tệ hơn là re-load qua Glide nếu cache miss).
      *
      * Chỉ copy drawable; không copy [attachedView]/[scope] — attach lifecycle
