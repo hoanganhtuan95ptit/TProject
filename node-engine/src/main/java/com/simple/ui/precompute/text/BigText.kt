@@ -2,29 +2,7 @@ package com.simple.ui.precompute.text
 
 import android.text.Spannable
 import android.text.SpannableString
-import android.text.style.CharacterStyle
 import com.simple.ui.precompute.text.BigImageSpanConvert.Companion.convert
-import java.util.ServiceConfigurationError
-import java.util.ServiceLoader
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.reflect.KClass
-
-private val bigSpanConvertList by lazy {
-
-    try {
-
-        ServiceLoader.load(BigImageSpanConvert::class.java).toList()
-    } catch (_: ServiceConfigurationError) {
-
-        emptyList()
-    }
-}
-
-// Cache KClass → BigSpanConvert: lần đầu O(n) scan, từ lần 2 trở đi O(1).
-// BigText có thể được build từ bất kỳ thread nào (kể cả Dispatchers.Default
-// trước khi gắn vào view), nên dùng ConcurrentHashMap để an toàn.
-private val bigSpanConvertCache =
-    ConcurrentHashMap<KClass<out BigImageSpan>, BigImageSpanConvert>()
 
 data class BigText(
     val text: String,
