@@ -75,7 +75,7 @@ data class TextNode(
         val contentH = layout.height + p.vertical
         val w = layoutWidth.resolve(contentW, c.maxWidth)
         val h = layoutHeight.resolve(contentH, c.maxHeight)
-        return TextSpec(x, y, w, h, p.left, p.top, layout)
+        return TextSpec(x, y, w, h, p.left, p.top, layout, this)
     }
 }
 
@@ -90,7 +90,8 @@ data class TextSpec(
     override val height: Int,
     val contentLeft: Int,
     val contentTop: Int,
-    val layout: StaticLayout
+    val layout: StaticLayout,
+    override val node: TextNode
 ) : DrawSpec() {
 
     override fun onDrawContent(canvas: Canvas) {

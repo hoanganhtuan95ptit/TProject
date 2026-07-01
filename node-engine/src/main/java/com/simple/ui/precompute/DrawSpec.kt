@@ -2,6 +2,9 @@ package com.simple.ui.precompute
 
 import android.graphics.Canvas
 import android.view.View
+import com.simple.ui.precompute.node.Constraints
+import com.simple.ui.precompute.node.LayoutDimension
+import com.simple.ui.precompute.node.LayoutNode
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DrawSpec — abstract base class cho mọi "lệnh vẽ" đã đo sẵn.
@@ -26,6 +29,18 @@ abstract class DrawSpec {
     abstract val top: Int
     abstract val width: Int
     abstract val height: Int
+
+    /**
+     * [LayoutNode] gốc đã sinh ra spec này.
+     *
+     * Dùng để so sánh khi cập nhật spec: nếu node mới structurally-equal với
+     * node của spec cũ, [PrecomputedDelegate] có thể tái sử dụng spec cũ,
+     * tránh requestLayout / mất state runtime (drawable, animator...).
+     *
+     * `open` + mặc định `null` cho tương thích ngược; concrete spec nên override
+     * và trả về node đã tạo ra chính nó (thường qua constructor param).
+     */
+    open val node: LayoutNode? = null
 
     val right: Int get() = left + width
     val bottom: Int get() = top + height
@@ -59,9 +74,94 @@ abstract class DrawSpec {
         }
     }
 
+    /**
+     * Reference-counted attach.
+     *
+     * Cùng một [DrawSpec] có thể nằm trong **cả cây spec cũ lẫn cây spec mới**
+     * (do cache-by-id trong [MeasureContext] tái sử dụng). Nếu container cứ
+     * gọi thẳng [onAttachedToWindow] / [onDetachedFromWindow] khi đệ quy vào
+     * children, shared ref sẽ chịu chu kỳ detach→attach vô ích — animator
+     * (OutlineSpec) restart, scope (ImageSpec) huỷ+tái tạo, callback re-set.
+     *
+     * Counter đảm bảo:
+     * - [attach]: chỉ gọi [onAttachedToWindow] khi counter đi từ 0→1
+     *   (lần đầu spec này gắn vào view).
+     * - [detach]: chỉ gọi [onDetachedFromWindow] khi counter đi từ 1→0
+     *   (spec không còn nằm trong tree nào của view).
+     *
+     * Container spec (GroupSpec, SizedSpec) đệ quy children qua **[attach] /
+     * [detach]** (không phải [onAttachedToWindow] / [onDetachedFromWindow]).
+     * Delegate cũng gọi [attach] / [detach] chứ không gọi thẳng hook.
+     */
+    fun attach(view: View) {
+        val wasZero = attachCount == 0
+        attachCount++
+        if (wasZero) onAttachedToWindow(view)
+    }
+
+    fun detach(view: View) {
+        if (attachCount == 0) return
+        attachCount--
+        if (attachCount == 0) onDetachedFromWindow(view)
+    }
+
+    private var attachCount: Int = 0
+
+    /**
+     * Hook cho subclass setup (start animator, kick off async load...).
+     *
+     * KHÔNG gọi trực tiếp từ container hay delegate — dùng [attach] để đi
+     * qua reference counter. Container recurse vào children cũng phải qua
+     * `child.attach(view)`.
+     */
     open fun onAttachedToWindow(view: View) {}
 
+    /**
+     * Hook cho subclass teardown (stop animator, cancel scope, clear callback...).
+     *
+     * KHÔNG gọi trực tiếp — dùng [detach] để đi qua reference counter.
+     */
     open fun onDetachedFromWindow(view: View) {}
+
+    /**
+     * Spec này (đã đo trước) có còn dùng được dưới constraint mới [c] không.
+     *
+     * Dùng bởi [MeasureContext] khi tra cache theo `node.id` — trước khi bỏ
+     * qua `node.measure()`, ta phải chắc kết quả nếu đo lại vẫn ra đúng
+     * kích thước hiện tại.
+     *
+     * Logic suy từ [LayoutDimension.resolve] của mỗi axis:
+     * - **Fixed(px)**: `resolve = min(px, max)`. Reuse an toàn khi
+     *   `cached == px && px <= max` (cached chưa từng bị cap và max mới đủ chỗ).
+     * - **MatchParent**: `resolve = max` (unbounded → wrap). Reuse an toàn
+     *   khi `cached == max`. Trường hợp max mới unbounded thì skip cache
+     *   vì kết quả sẽ phụ thuộc contentSize không lưu ở đây.
+     * - **WrapContent**: `resolve = min(content, max)`. Bảo thủ: chỉ reuse
+     *   khi `cached < max` — vì nếu `cached == max` thì có thể đã bị cap
+     *   (content > max), lần đo mới với max khác sẽ ra khác. Trường hợp
+     *   `cached < max` giả định content chính bằng cached (uncapped).
+     *
+     * Trả về `false` khi [node] null (spec ẩn danh — không đủ metadata suy).
+     */
+    open fun canReuseUnder(c: Constraints): Boolean {
+        val n = node ?: return false
+        return axisReusable(n.layoutWidth, width, c.maxWidth) &&
+                axisReusable(n.layoutHeight, height, c.maxHeight)
+    }
+
+    private fun axisReusable(mode: LayoutDimension, cached: Int, maxAvail: Int): Boolean {
+        if (maxAvail == Int.MAX_VALUE) {
+            // Unbounded parent: Fixed & WrapContent chỉ phụ thuộc node content,
+            // cached vẫn đúng. MatchParent unbounded falls back to wrap semantics
+            // → không đủ info để so, skip cache cho case này.
+            return mode !is LayoutDimension.MatchParent
+        }
+        return when (mode) {
+            is LayoutDimension.Fixed -> mode.px == cached && cached <= maxAvail
+            LayoutDimension.MatchParent -> cached == maxAvail
+            LayoutDimension.WrapContent -> cached < maxAvail
+        }
+    }
 }
 
 /**
@@ -77,6 +177,10 @@ internal data class SizedSpec(
     val child: DrawSpec
 ) : DrawSpec() {
 
+    /** Delegate node cho child — SizedSpec chỉ là size adapter, không phải node riêng. */
+    override val node: LayoutNode?
+        get() = child.node
+
     override fun onDrawContent(canvas: Canvas) {
         child.draw(canvas)
     }
@@ -91,10 +195,10 @@ internal data class SizedSpec(
     }
 
     override fun onAttachedToWindow(view: View) {
-        child.onAttachedToWindow(view)
+        child.attach(view)
     }
 
     override fun onDetachedFromWindow(view: View) {
-        child.onDetachedFromWindow(view)
+        child.detach(view)
     }
 }

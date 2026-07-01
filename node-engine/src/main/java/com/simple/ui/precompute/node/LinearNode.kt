@@ -103,7 +103,7 @@ data class LinearNode(
         }
         if (placed.isNotEmpty()) cursor -= gap
 
-        return GroupSpec(x, y, w, h, placed)
+        return GroupSpec(x, y, w, h, placed, this)
     }
 
     private companion object {
@@ -125,7 +125,8 @@ data class GroupSpec(
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val children: List<DrawSpec>
+    val children: List<DrawSpec>,
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     override fun onDrawContent(canvas: Canvas) {
@@ -133,11 +134,11 @@ data class GroupSpec(
     }
 
     override fun onAttachedToWindow(view: View) {
-        for (i in children.indices) children[i].onAttachedToWindow(view)
+        for (i in children.indices) children[i].attach(view)
     }
 
     override fun onDetachedFromWindow(view: View) {
-        for (i in children.indices) children[i].onDetachedFromWindow(view)
+        for (i in children.indices) children[i].detach(view)
     }
 
     override fun withPosition(newLeft: Int, newTop: Int) =

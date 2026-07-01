@@ -61,7 +61,8 @@ data class OutlineNode(
             dashGap = dashGap,
             loadingSegmentRatio = loadingSegmentRatio,
             loadingDurationMs = loadingDurationMs,
-            state = state
+            state = state,
+            node = this
         )
     }
 }
@@ -80,7 +81,8 @@ class OutlineSpec(
     dashGap: Float,
     loadingSegmentRatio: Float,
     loadingDurationMs: Long,
-    state: OutlineState
+    state: OutlineState,
+    override val node: OutlineNode
 ) : DrawSpec() {
 
     var backgroundColor: Int = backgroundColor
@@ -407,7 +409,8 @@ class OutlineSpec(
             dashGap = dashGap,
             loadingSegmentRatio = loadingSegmentRatio,
             loadingDurationMs = loadingDurationMs,
-            state = state
+            state = state,
+            node = node
         ).also {
             it.internalState = internalState
             it.settledInternalState = settledInternalState

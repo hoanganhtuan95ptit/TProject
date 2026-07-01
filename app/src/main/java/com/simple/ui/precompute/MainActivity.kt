@@ -9,23 +9,20 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.simple.t.R
 import com.simple.ui.precompute.image.BigImage
+import com.simple.ui.precompute.image.CircleCrop
+import com.simple.ui.precompute.image.RoundedCorners
 import com.simple.ui.precompute.image.addTransform
 import com.simple.ui.precompute.image.build
 import com.simple.ui.precompute.image.toBuilder
-import com.simple.ui.precompute.text.span.ForegroundColor
-import com.simple.ui.precompute.text.BigText
-import com.simple.ui.precompute.text.span.TextSize
-import com.simple.ui.precompute.text.build
-import com.simple.ui.precompute.text.with
-import com.simple.t.R
-import com.simple.ui.precompute.image.CircleCrop
-import com.simple.ui.precompute.image.RoundedCorners
 import com.simple.ui.precompute.node.ConstraintChild
 import com.simple.ui.precompute.node.ConstraintNode
 import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
+import com.simple.ui.precompute.node.GaugeArcNode
+import com.simple.ui.precompute.node.GaugeScoreNode
 import com.simple.ui.precompute.node.ImageNode
 import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
@@ -33,7 +30,13 @@ import com.simple.ui.precompute.node.LinearNode
 import com.simple.ui.precompute.node.Orientation
 import com.simple.ui.precompute.node.OutlineNode
 import com.simple.ui.precompute.node.OutlineState
+import com.simple.ui.precompute.node.ProgressBarNode
 import com.simple.ui.precompute.node.TextNode
+import com.simple.ui.precompute.text.BigText
+import com.simple.ui.precompute.text.build
+import com.simple.ui.precompute.text.span.ForegroundColor
+import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.with
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -200,9 +203,61 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, chipSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 8 — ScoreGauge
+            //   GaugeArcNode + GaugeScoreNode overlay trong cùng 1 ConstraintNode.
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑧ ScoreGauge  —  GaugeArcNode + GaugeScoreNode")
+
+            val scoreGaugeSpecs = withContext(Dispatchers.Default) {
+                items.map {
+                    LayoutEngine.measure(buildScoreGaugeSpec(progress = 90, sizePx = dp(160)), Constraints(cardWidth))
+                }
+            }
+            addCards(container, scoreGaugeSpecs)
+
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 9 — ProgressBarNode
+            //   Horizontal progress bar: track + fill đều là rounded-rect.
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑨ ProgressBarNode  —  thanh tiến độ ngang")
+
+            val progressBarSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(
+                        buildProgressBarCard(
+                            title = "Listening accuracy",
+                            progress = 68,
+                            max = 100,
+                            progressColor = 0xFF1B998B.toInt()
+                        ),
+                        Constraints(cardWidth)
+                    ),
+                    LayoutEngine.measure(
+                        buildProgressBarCard(
+                            title = "Speaking fluency",
+                            progress = 42,
+                            max = 100,
+                            progressColor = 0xFFE76F51.toInt()
+                        ),
+                        Constraints(cardWidth)
+                    ),
+                    LayoutEngine.measure(
+                        buildProgressBarCard(
+                            title = "Daily goal",
+                            progress = 9,
+                            max = 12,
+                            progressColor = 0xFF5B7CFA.toInt()
+                        ),
+                        Constraints(cardWidth)
+                    )
+                )
+            }
+            addCards(container, progressBarSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 2 + profiles.size + 4 + items.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip, measured on bg thread"
+                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -696,7 +751,7 @@ class MainActivity : AppCompatActivity() {
                     dashWidth = dp(10).toFloat(),
                     dashGap = dp(6).toFloat(),
                     loadingSegmentRatio = 0.35f,
-                    loadingDurationMs = 900L,
+                    loadingDurationMs = 10000L,
                     state = OutlineState.LOADING
                 ),
                 startToStartOf = ConstraintNode.PARENT,
@@ -736,6 +791,86 @@ class MainActivity : AppCompatActivity() {
                 width = LayoutDimension.MatchParent,
                 verticalBias = 0.5f
             )
+        )
+    )
+
+    /**
+     * **ProgressBarNode** card — bar ngang có chiều cao cố định, rộng theo card.
+     */
+    private fun buildProgressBarCard(
+        title: String,
+        progress: Int,
+        max: Int,
+        progressColor: Int
+    ): LayoutNode {
+        val safeMax = max.coerceAtLeast(1)
+        val safeProgress = progress.coerceIn(0, safeMax)
+
+        return LinearNode(
+            orientation = Orientation.VERTICAL,
+            gap = dp(8),
+            padding = EdgeInsets.all(dp(16)),
+            layoutWidth = LayoutDimension.MatchParent,
+            children = listOf(
+                TextNode(
+                    text = BigText("$title  $safeProgress/$safeMax"),
+                    textSizePx = sp(14f),
+                    color = 0xFF202124.toInt(),
+                    typeface = Typeface.DEFAULT_BOLD,
+                    maxLines = 1
+                ),
+                ProgressBarNode(
+                    progress = safeProgress,
+                    max = safeMax,
+                    trackColor = 0xFFE8EAED.toInt(),
+                    progressColor = progressColor,
+                    layoutWidth = LayoutDimension.MatchParent,
+                    layoutHeight = LayoutDimension.Fixed(dp(8))
+                )
+            )
+        )
+    }
+
+    /**
+     * Build DrawSpec cho ScoreGauge. Gọi off-main được (không đụng Context).
+     *
+     * @param sizePx cạnh vuông của gauge, vd 160.dp.toPx()
+     */
+    fun buildScoreGaugeSpec(progress: Int, grade: String = "", label: String = "ĐIỂM", sizePx: Int, strokeWidthPx: Float = dp(1).toFloat()): LayoutNode = ConstraintNode(
+        layoutWidth = LayoutDimension.Fixed(sizePx),
+        layoutHeight = LayoutDimension.Fixed(sizePx),
+        children = listOf(
+            // Vòng cung — fill toàn bộ frame.
+            ConstraintChild(
+                id = "arc",
+                node = GaugeArcNode(
+                    progress = progress,
+                    progressColor = Color.BLACK,
+                    strokeWidthPx = strokeWidthPx,
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+                bottomToBottomOf = ConstraintNode.PARENT,
+                width = LayoutDimension.MatchParent,
+                height = LayoutDimension.MatchParent,
+            ),
+            // Text trung tâm — overlay lên cùng frame.
+            ConstraintChild(
+                id = "score",
+                node = GaugeScoreNode(
+                    progress = progress,
+                    label = label,
+                    grade = grade,
+                    gradeColor = Color.BLACK,
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                endToEndOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
+                bottomToBottomOf = ConstraintNode.PARENT,
+                width = LayoutDimension.MatchParent,
+                height = LayoutDimension.MatchParent,
+            ),
         )
     )
 }

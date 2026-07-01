@@ -60,7 +60,7 @@ data class ImageNode(
         val dstH = (h - p.vertical).coerceAtLeast(0)
 
         val dst = Rect(p.left, p.top, p.left + dstW, p.top + dstH)
-        return ImageSpec(x, y, w, h, source, dst)
+        return ImageSpec(x, y, w, h, source, dst, this)
     }
 
     private fun LayoutDimension.contentSizeFrom(parentMax: Int, padding: Int): Int? =
@@ -93,7 +93,8 @@ class ImageSpec(
     override val width: Int,
     override val height: Int,
     val source: BigImage,
-    val dst: Rect
+    val dst: Rect,
+    override val node: ImageNode
 ) : DrawSpec() {
 
     var drawable: Drawable? = null
@@ -202,12 +203,27 @@ class ImageSpec(
     }
 
     /**
-     * Không copy [drawable] sang spec mới: withPosition luôn được gọi trên spec
-     * vừa-measure (chưa attach, chưa có drawable). State liên-spec được xử lý
-     * qua [ImageCache] ở [onAttachedToWindow] thay vì truyền tay giữa các spec.
+     * withPosition tạo instance mới với vị trí khác nhưng **giữ drawable đã load**.
+     *
+     * Ban đầu invariant là "withPosition chỉ gọi trên spec vừa-measure (chưa
+     * có drawable)". Cache-by-id trong [com.simple.ui.precompute.MeasureContext]
+     * phá vỡ invariant đó: khi node không đổi (cache hit) nhưng vị trí bị
+     * parent xê dịch (vd sibling ở trên thay đổi kích thước), engine trả
+     * `cached.withPosition(x, y)` — nếu không copy drawable, đường tránh-
+     * flicker này mất tác dụng (spec mới phải đi qua ImageCache lookup,
+     * tệ hơn là re-load qua Glide nếu cache miss).
+     *
+     * Chỉ copy drawable; không copy [attachedView]/[scope] — attach lifecycle
+     * sẽ được [com.simple.ui.precompute.PrecomputedDelegate] chạy lại trên
+     * instance mới.
      */
-    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        ImageSpec(newLeft, newTop, width, height, source, dst)
+    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec {
+        if (newLeft == left && newTop == top) return this
+        val next = ImageSpec(newLeft, newTop, width, height, source, dst, node)
+        val d = drawable
+        if (d != null) next.drawable = d
+        return next
+    }
 
     private fun Drawable.centerInside(container: Rect): Rect {
         val containerW = container.width()

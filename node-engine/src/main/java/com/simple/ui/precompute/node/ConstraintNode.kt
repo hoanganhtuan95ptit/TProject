@@ -186,7 +186,7 @@ data class ConstraintNode(
         val naturalH = (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
         val totalW = layoutWidth.resolve(naturalW.coerceAtLeast(p.horizontal), c.maxWidth)
         val totalH = layoutHeight.resolve(naturalH.coerceAtLeast(p.vertical), c.maxHeight)
-        return GroupSpec(x, y, totalW, totalH, placed)
+        return GroupSpec(x, y, totalW, totalH, placed, this)
     }
 
     // ── Dependency check ────────────────────────────────────────────────────

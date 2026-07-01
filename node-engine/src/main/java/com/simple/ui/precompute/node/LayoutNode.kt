@@ -103,6 +103,23 @@ abstract class LayoutNode {
     open val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 
     /**
+     * Optional stable identity dùng cho **spec cache trong [com.simple.ui.precompute.MeasureContext]**.
+     *
+     * Contract (do caller giữ):
+     * - Cùng một logical unit qua các lần rebuild tree phải có cùng [id].
+     * - Nếu node vẫn là **cùng instance** (`===`) so với lần trước, cache hit
+     *   → bỏ qua `node.measure()`, tận dụng nguyên spec cũ (giữ StaticLayout,
+     *   Rect, drawable, animator state...). Đây là fast-path chính.
+     * - Nếu node là instance mới (dù nội dung không đổi), cache miss → đo lại.
+     *   Muốn tránh, hãy giữ ref subtree không thay đổi (kiểu memo/immutable).
+     * - Trùng id giữa 2 node khác nhau trong cùng tree = undefined behavior;
+     *   caller tự chịu trách nhiệm unique.
+     *
+     * Không gán id → node không bao giờ vào cache, luôn measure lại.
+     */
+    open val id: Any? = null
+
+    /**
      * Tự đo và trả về [com.simple.ui.precompute.DrawSpec] tại vị trí ([x], [y]).
      * Dùng [ctx] để đệ quy đo các child nếu là node container.
      */
