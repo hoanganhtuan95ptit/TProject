@@ -11,7 +11,7 @@ import com.simple.ui.precompute.text.BigSpan
 import com.simple.ui.precompute.text.BigSpanConvert
 
 
-data class RoundedBackground(
+data class BigRoundedBackground(
     val backgroundColor: Int,
     val textColor: Int,
     val radius: Float = 20f
@@ -19,10 +19,10 @@ data class RoundedBackground(
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class BoundedBackgroundConvert : BigSpanConvert {
+class BigRoundedBackgroundConvert : BigSpanConvert {
 
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return if (bigSpan is RoundedBackground) RoundedBackgroundSpan(bigSpan.backgroundColor, bigSpan.textColor, bigSpan.radius) else null
+        return if (bigSpan is BigRoundedBackground) RoundedBackgroundSpan(bigSpan.backgroundColor, bigSpan.textColor, bigSpan.radius) else null
     }
 }
 

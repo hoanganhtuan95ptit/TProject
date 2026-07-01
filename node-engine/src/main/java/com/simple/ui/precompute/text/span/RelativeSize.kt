@@ -8,13 +8,13 @@ import android.text.style.RelativeSizeSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 
-data class RelativeSize(val proportion: Float) : BigSpan()
+data class BigRelativeSize(val proportion: Float) : BigSpan()
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class RelativeSizeConvert : BigSpanConvert {
+class BigRelativeSizeConvert : BigSpanConvert {
 
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return if (bigSpan is RelativeSize) RelativeSizeSpan(bigSpan.proportion) else null
+        return if (bigSpan is BigRelativeSize) RelativeSizeSpan(bigSpan.proportion) else null
     }
 }

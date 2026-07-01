@@ -9,13 +9,13 @@ import android.text.style.StyleSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 
-object Bold : BigSpan()
+object BigBold : BigSpan()
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class BoldConvert : BigSpanConvert {
+class BigBoldConvert : BigSpanConvert {
 
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return if (bigSpan is Bold) StyleSpan(Typeface.BOLD) else null
+        return if (bigSpan is BigBold) StyleSpan(Typeface.BOLD) else null
     }
 }

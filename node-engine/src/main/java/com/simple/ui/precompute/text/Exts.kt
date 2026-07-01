@@ -1,7 +1,7 @@
 package com.simple.ui.precompute.text
 
 import android.widget.TextView
-import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.span.BigTextSize
 
 
 fun TextView.setText(text: BigText?) {
@@ -20,6 +20,12 @@ fun emptyText() = EMPTY
 fun String.toBuilder(): BigTextBuilder {
 
     return BigTextBuilder(this)
+}
+
+fun BigText.toBuilder(): BigTextBuilder {
+    return BigTextBuilder(text).apply {
+        bigStyles.addAll(spans)
+    }
 }
 
 fun String.with(vararg spannable: BigSpan): BigTextBuilder {
@@ -76,63 +82,63 @@ fun BigTextBuilder.build(): BigText = BigText(
 
 
 fun String.withStyleDisplayLarge(): BigTextBuilder {
-    return toBuilder().with(TextSize(57))
+    return toBuilder().with(BigTextSize(57))
 }
 
 fun String.withStyleDisplayMedium(): BigTextBuilder {
-    return toBuilder().with(TextSize(45))
+    return toBuilder().with(BigTextSize(45))
 }
 
 fun String.withStyleDisplaySmall(): BigTextBuilder {
-    return toBuilder().with(TextSize(36))
+    return toBuilder().with(BigTextSize(36))
 }
 
 fun String.withStyleHeadlineLarge(): BigTextBuilder {
-    return toBuilder().with(TextSize(32))
+    return toBuilder().with(BigTextSize(32))
 }
 
 fun String.withStyleHeadlineMedium(): BigTextBuilder {
-    return toBuilder().with(TextSize(28))
+    return toBuilder().with(BigTextSize(28))
 }
 
 fun String.withStyleHeadlineSmall(): BigTextBuilder {
-    return toBuilder().with(TextSize(24))
+    return toBuilder().with(BigTextSize(24))
 }
 
 fun String.withStyleTitleLarge(): BigTextBuilder {
-    return toBuilder().with(TextSize(22))
+    return toBuilder().with(BigTextSize(22))
 }
 
 fun String.withStyleTitleMedium(): BigTextBuilder {
-    return toBuilder().with(TextSize(16))
+    return toBuilder().with(BigTextSize(16))
 }
 
 fun String.withStyleTitleSmall(): BigTextBuilder {
-    return toBuilder().with(TextSize(14))
+    return toBuilder().with(BigTextSize(14))
 }
 
 fun String.withStyleBodyLarge(): BigTextBuilder {
-    return toBuilder().with(TextSize(16))
+    return toBuilder().with(BigTextSize(16))
 }
 
 fun String.withStyleBodyMedium(): BigTextBuilder {
-    return toBuilder().with(TextSize(14))
+    return toBuilder().with(BigTextSize(14))
 }
 
 fun String.withStyleBodySmall(): BigTextBuilder {
-    return toBuilder().with(TextSize(12))
+    return toBuilder().with(BigTextSize(12))
 }
 
 fun String.withStyleLabelLarge(): BigTextBuilder {
-    return toBuilder().with(TextSize(14))
+    return toBuilder().with(BigTextSize(14))
 }
 
 fun String.withStyleLabelMedium(): BigTextBuilder {
-    return toBuilder().with(TextSize(12))
+    return toBuilder().with(BigTextSize(12))
 }
 
 fun String.withStyleLabelSmall(): BigTextBuilder {
-    return toBuilder().with(TextSize(11))
+    return toBuilder().with(BigTextSize(11))
 }
 
 

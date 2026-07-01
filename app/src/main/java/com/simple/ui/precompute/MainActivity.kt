@@ -35,8 +35,8 @@ import com.simple.ui.precompute.node.SpaceNode
 import com.simple.ui.precompute.node.TextNode
 import com.simple.ui.precompute.text.BigText
 import com.simple.ui.precompute.text.build
-import com.simple.ui.precompute.text.span.ForegroundColor
-import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.span.BigForegroundColor
+import com.simple.ui.precompute.text.span.BigTextSize
 import com.simple.ui.precompute.text.with
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -638,7 +638,7 @@ class MainActivity : AppCompatActivity() {
             ConstraintChild(
                 id = "tag_1",
                 node = TextNode(
-                    "Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)).build(),
+                    "Kotlin".with(BigForegroundColor(Color.GREEN), BigTextSize(20)).build(),
                     sp(1f),
                     0xFFE91E63.toInt(),
                     typeface = Typeface.DEFAULT_BOLD,

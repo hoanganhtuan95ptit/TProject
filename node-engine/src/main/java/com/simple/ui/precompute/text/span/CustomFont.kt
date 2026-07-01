@@ -15,13 +15,13 @@ import com.google.auto.service.AutoService
  * Dùng để kiểm soát font của title toolbar, header... từ ViewModel.
  * Ví dụ: CustomFont(Typeface.create("sans-serif-medium", Typeface.NORMAL))
  */
-data class CustomFont(val typeface: Typeface) : BigSpan()
+data class BigCustomFont(val typeface: Typeface) : BigSpan()
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class CustomFontConvert : BigSpanConvert {
+class BigCustomFontConvert : BigSpanConvert {
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return (bigSpan as? CustomFont)?.let { CustomFontAndroidSpan(it.typeface) }
+        return (bigSpan as? BigCustomFont)?.let { CustomFontAndroidSpan(it.typeface) }
     }
 }
 

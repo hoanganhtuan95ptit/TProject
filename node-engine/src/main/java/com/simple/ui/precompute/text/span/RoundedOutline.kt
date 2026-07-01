@@ -15,7 +15,7 @@ import android.text.style.MetricAffectingSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 
-data class RoundedOutline(
+data class BigRoundedOutline(
     val textSize: Float,
     val paddingHorizontal: Float = 0f,
     val paddingVertical: Float = 0f,
@@ -30,15 +30,15 @@ data class RoundedOutline(
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class RoundedOutlineSpanConvert : BigSpanConvert {
+class BigRoundedOutlineConvert : BigSpanConvert {
 
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return (bigSpan as? RoundedOutline)?.let(::RoundedOutlineAndroidSpan)
+        return (bigSpan as? BigRoundedOutline)?.let(::RoundedOutlineAndroidSpan)
     }
 }
 
 private class RoundedOutlineAndroidSpan(
-    private val span: RoundedOutline
+    private val span: BigRoundedOutline
 ) : MetricAffectingSpan(), LineBackgroundSpan {
 
     private val rect = RectF()

@@ -5,8 +5,8 @@ import android.text.Spanned
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.simple.ui.precompute.text.span.ForegroundColor
-import com.simple.ui.precompute.text.span.TextSize
+import com.simple.ui.precompute.text.span.BigForegroundColor
+import com.simple.ui.precompute.text.span.BigTextSize
 import com.simple.ui.precompute.text.build
 import com.simple.ui.precompute.text.with
 import org.junit.Assert.assertEquals
@@ -18,7 +18,7 @@ class BigTextTest {
 
     @Test
     fun bigTextAppliesForegroundColorAndTextSize() {
-        val bigText = "Kotlin".with(ForegroundColor(Color.GREEN), TextSize(20)).build()
+        val bigText = "Kotlin".with(BigForegroundColor(Color.GREEN), BigTextSize(20)).build()
         val spanned = bigText.textChar as Spanned
 
         val colorSpans = spanned.getSpans(0, spanned.length, ForegroundColorSpan::class.java)

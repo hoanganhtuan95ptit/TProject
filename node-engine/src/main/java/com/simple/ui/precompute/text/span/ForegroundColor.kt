@@ -8,13 +8,13 @@ import android.text.style.ForegroundColorSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 
-data class ForegroundColor(val color: Int) : BigSpan()
+data class BigForegroundColor(val color: Int) : BigSpan()
 
 @Keep
 @AutoService(BigSpanConvert::class)
-class ForegroundColorConvert : BigSpanConvert {
+class BigForegroundColorConvert : BigSpanConvert {
 
     override fun getAndroidSpan(bigSpan: BigSpan): CharacterStyle? {
-        return if (bigSpan is ForegroundColor) ForegroundColorSpan(bigSpan.color) else null
+        return if (bigSpan is BigForegroundColor) ForegroundColorSpan(bigSpan.color) else null
     }
 }
