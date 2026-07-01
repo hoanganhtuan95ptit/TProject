@@ -35,79 +35,138 @@ class GlideImageLoader(context: Context) : ImageLoader {
 
     private val appContext = context as? Application ?: context.applicationContext
 
-    private val handlerThread = HandlerThread("GlideImageLoader").apply { start() }
+    private val handlerThread = HandlerThread("GlideImageLoader").apply {
+
+        start()
+    }
+
     private val bgHandler = Handler(handlerThread.looper)
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    override val dispatcher: Executor = Executor { bgHandler.post(it) }
+    override val dispatcher: Executor = Executor { command ->
+
+        bgHandler.post(command)
+    }
 
     /** Tracking target theo spec để cancel chính xác. Truy cập từ bg thread. */
     private val targets = WeakHashMap<ImageSpec, CustomTarget<Drawable>>()
 
+    private data class RequestSize(
+        val width: Int,
+        val height: Int
+    )
+
     override fun load(spec: ImageSpec, onReady: () -> Unit) {
+
         // Chạy trên bg thread (dispatcher).
         if (spec.drawable != null) return
 
-        val w = spec.dst.width().coerceAtLeast(1)
-        val h = spec.dst.height().coerceAtLeast(1)
+        val size = spec.requestSize()
+        val request = createRequest(spec, size)
+        val target = createTarget(spec, size, onReady)
+
+        targets[spec] = target
+
+        // Glide yêu cầu into(target) chạy ở main thread.
+        mainHandler.post {
+
+            request.into(target)
+        }
+    }
+
+    override fun cancel(spec: ImageSpec) {
+
+        // Chạy trên bg thread (dispatcher).
+        val target = targets.remove(spec) ?: return
+
+        // Glide.clear cũng đụng RequestManager — post về main cho an toàn.
+        mainHandler.post {
+
+            Glide.with(appContext).clear(target)
+        }
+    }
+
+    private fun ImageSpec.requestSize(): RequestSize =
+        RequestSize(
+            width = dst.width().coerceAtLeast(1),
+            height = dst.height().coerceAtLeast(1)
+        )
+
+    private fun createRequest(spec: ImageSpec, size: RequestSize): RequestBuilder<Drawable> {
 
         // Glide.with(applicationContext) an toàn từ bg thread (lifecycle
         // gắn với application, không phải Activity/Fragment).
         var withModel: RequestBuilder<Drawable> = Glide.with(appContext)
             .load(spec.source.source)
-            .override(w, h)
+            .override(size.width, size.height)
+
         if (spec.source.placeholder != 0) {
+
             withModel = withModel.placeholder(spec.source.placeholder)
         }
+
         if (spec.source.error != 0) {
+
             withModel = withModel.error(spec.source.error)
         }
+
         BigTransformConverters.build(spec.source.transforms).toTypedArray().let {
+
             withModel = withModel.transform(*it)
         }
 
-        val target = object : CustomTarget<Drawable>(w, h) {
+        return withModel
+    }
+
+    private fun createTarget(
+        spec: ImageSpec,
+        size: RequestSize,
+        onReady: () -> Unit
+    ): CustomTarget<Drawable> =
+        object : CustomTarget<Drawable>(size.width, size.height) {
+
             override fun onLoadStarted(placeholder: Drawable?) {
+
                 // Chỉ set placeholder khi spec chưa có gì để vẽ. Tránh clobber
                 // drawable cũ (hit cache hoặc đã load lần trước) bằng placeholder
                 // — đó là nguồn gốc của flicker.
-                if (spec.drawable == null && placeholder != null) {
-                    spec.drawable = placeholder
-                    onReady()
-                }
+                spec.setPlaceholderIfEmpty(placeholder, onReady)
             }
 
             override fun onResourceReady(
                 resource: Drawable,
                 transition: Transition<in Drawable>?
             ) {
+
                 // Cache trước khi gán drawable: lần attach sau cho cùng [source]
                 // sẽ hit cache đồng bộ và bỏ qua hoàn toàn vòng Glide.
-                ImageCache.put(spec.source, resource)
-                spec.drawable = resource
-                onReady()
+                spec.setLoadedDrawable(resource, onReady)
             }
 
             override fun onLoadFailed(errorDrawable: Drawable?) {
+
                 spec.drawable = errorDrawable
                 onReady()
             }
 
             override fun onLoadCleared(placeholder: Drawable?) {
+
                 spec.drawable = null
             }
         }
 
-        targets[spec] = target
+    private fun ImageSpec.setPlaceholderIfEmpty(placeholder: Drawable?, onReady: () -> Unit) {
 
-        // Glide yêu cầu into(target) chạy ở main thread.
-        mainHandler.post { withModel.into(target) }
+        if (drawable != null || placeholder == null) return
+
+        drawable = placeholder
+        onReady()
     }
 
-    override fun cancel(spec: ImageSpec) {
-        // Chạy trên bg thread (dispatcher).
-        val target = targets.remove(spec) ?: return
-        // Glide.clear cũng đụng RequestManager — post về main cho an toàn.
-        mainHandler.post { Glide.with(appContext).clear(target) }
+    private fun ImageSpec.setLoadedDrawable(resource: Drawable, onReady: () -> Unit) {
+
+        ImageCache.put(source, resource)
+        drawable = resource
+        onReady()
     }
 }

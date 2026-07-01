@@ -173,10 +173,10 @@ class ImageSpec(
         // Cache hit: gán drawable sync, bỏ qua hoàn toàn vòng load qua Glide.
         // Đây là đường tránh-flicker chính khi spec mới có cùng [source] với
         // ảnh đã load trước đó (kể cả ở view khác).
-        ImageCache.get(source)?.let {
-            drawable = it
-            return
-        }
+//        ImageCache.get(source)?.let {
+//            drawable = it
+//            return
+//        }
 
         val loader = ImageLoader.get() ?: return
         // Load off-main; nếu detach trước khi xong sẽ tự cancel theo scope.

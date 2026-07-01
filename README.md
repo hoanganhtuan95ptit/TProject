@@ -874,7 +874,60 @@ fun buildChip(
 
 ---
 
-### Ví dụ 3: Bài học phức tạp (Linear lồng nhau)
+### Ví dụ 3: Note row từ XML LinearLayout
+
+XML gốc là một `LinearLayout` ngang full-width, icon 28dp bên trái, cột text
+bên phải có `marginStart=16dp`, và dòng note có `marginTop=8dp`. Trong node DSL,
+hai margin riêng lẻ này được biểu diễn bằng `SpaceNode`.
+
+```kotlin
+fun buildNoteRowFromXml(
+    title: String,
+    note: String,
+    iconSource: BigImage,
+): LayoutNode = LinearNode(
+    orientation = Orientation.HORIZONTAL,
+    crossAlign = CrossAlign.START,
+    padding = EdgeInsets.symmetric(h = 16.dp, v = 8.dp),
+    layoutWidth = LayoutDimension.MatchParent,
+    layoutHeight = LayoutDimension.WrapContent,
+    children = listOf(
+        ImageNode(
+            source = iconSource,
+            layoutWidth = LayoutDimension.Fixed(28.dp),
+            layoutHeight = LayoutDimension.Fixed(28.dp)
+        ),
+        SpaceNode.horizontal(16.dp),
+        LinearNode(
+            orientation = Orientation.VERTICAL,
+            layoutWidth = LayoutDimension.MatchParent,
+            layoutHeight = LayoutDimension.WrapContent,
+            children = listOf(
+                TextNode(
+                    text = BigText(title),
+                    textSizePx = 14.sp,
+                    color = 0xFF202124.toInt(),
+                    layoutWidth = LayoutDimension.MatchParent
+                ),
+                SpaceNode.vertical(8.dp),
+                TextNode(
+                    text = BigText(note),
+                    textSizePx = 14.sp,
+                    color = 0xFF5F6368.toInt(),
+                    layoutWidth = LayoutDimension.MatchParent
+                )
+            )
+        )
+    )
+)
+```
+
+`tools:text="Meet"` trong XML chỉ là dữ liệu preview, nên ở node nên truyền
+text thật từ runtime qua `title` và `note`.
+
+---
+
+### Ví dụ 4: Bài học phức tạp (Linear lồng nhau)
 
 ```kotlin
 fun buildLessonCard(

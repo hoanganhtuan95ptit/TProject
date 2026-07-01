@@ -1,5 +1,9 @@
 package com.simple.ui.precompute
 
+import android.os.Looper
+import com.simple.ui.precompute.LayoutEngine.clearCache
+import com.simple.ui.precompute.LayoutEngine.evict
+import com.simple.ui.precompute.LayoutEngine.measure
 import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.LayoutNode
 import java.util.concurrent.ConcurrentHashMap
@@ -58,6 +62,11 @@ object LayoutEngine {
         constraints: Constraints,
         id: Any? = null
     ): DrawSpec {
+
+        if (Thread.currentThread() == Looper.getMainLooper().thread) {
+            error("luồng tính toán cần phải xử lý ở background")
+        }
+
         val ctx = MeasureContext(cache)
         val spec = ctx.measure(node, constraints, 0, 0)
         // Root có thể chưa có LayoutNode.id — nếu caller truyền id riêng cho

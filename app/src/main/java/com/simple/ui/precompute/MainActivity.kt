@@ -31,6 +31,7 @@ import com.simple.ui.precompute.node.Orientation
 import com.simple.ui.precompute.node.OutlineNode
 import com.simple.ui.precompute.node.OutlineState
 import com.simple.ui.precompute.node.ProgressBarNode
+import com.simple.ui.precompute.node.SpaceNode
 import com.simple.ui.precompute.node.TextNode
 import com.simple.ui.precompute.text.BigText
 import com.simple.ui.precompute.text.build
@@ -255,9 +256,37 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, progressBarSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 10 — XML NoteRow: LinearLayout → Node
+            //   Chuyển đổi từ XML người dùng đưa:
+            //     LinearLayout horizontal match_parent / wrap_content
+            //       ├─ ImageView 28×28dp
+            //       └─ LinearLayout vertical match_parent + marginStart 16dp
+            //            ├─ TextView title
+            //            └─ TextView note + marginTop 8dp
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑩ XML NoteRow  —  LinearLayout → Node")
+
+            val notes = listOf(
+                "Meet" to "Meet",
+                "Design sync" to "Review node spacing from the XML version",
+                "Long title wraps inside the remaining width" to
+                    "The text column uses MatchParent after icon width and marginStart are reserved."
+            )
+
+            val noteSpecs = withContext(Dispatchers.Default) {
+                notes.map { (title, note) ->
+                    LayoutEngine.measure(
+                        buildNoteRowFromXml(title, note, iconSource),
+                        Constraints(cardWidth)
+                    )
+                }
+            }
+            addCards(container, noteSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode, measured on bg thread"
+                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size + noteSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode + XML NoteRow, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -336,6 +365,52 @@ class MainActivity : AppCompatActivity() {
                     TextNode(BigText(word), sp(16f), Color.BLACK, typeface = Typeface.DEFAULT_BOLD, maxLines = 2),
                     TextNode(BigText(ipa), sp(14f), 0xFF6200EE.toInt(), maxLines = 1),
                     TextNode(BigText(meaning), sp(12f), Color.GRAY, maxLines = 2),
+                )
+            )
+        )
+    )
+
+    /**
+     * **XML NoteRow** — chuyển đổi trực tiếp từ LinearLayout trong XML:
+     *
+     * - root: horizontal, `match_parent` × `wrap_content`, padding 16dp/8dp
+     * - icon: 28dp × 28dp
+     * - text column: `match_parent`, marginStart 16dp
+     * - note text: marginTop 8dp
+     */
+    private fun buildNoteRowFromXml(
+        title: String,
+        note: String,
+        iconSource: BigImage,
+    ): LayoutNode = LinearNode(
+        orientation = Orientation.HORIZONTAL,
+        crossAlign = CrossAlign.START,
+        padding = EdgeInsets.symmetric(h = dp(16), v = dp(8)),
+        layoutWidth = LayoutDimension.MatchParent,
+        children = listOf(
+            ImageNode(
+                source = iconSource,
+                layoutWidth = LayoutDimension.Fixed(dp(28)),
+                layoutHeight = LayoutDimension.Fixed(dp(28))
+            ),
+            SpaceNode.horizontal(dp(16)),
+            LinearNode(
+                orientation = Orientation.VERTICAL,
+                layoutWidth = LayoutDimension.MatchParent,
+                children = listOf(
+                    TextNode(
+                        text = BigText(title),
+                        textSizePx = sp(14f),
+                        color = 0xFF202124.toInt(),
+                        layoutWidth = LayoutDimension.MatchParent
+                    ),
+                    SpaceNode.vertical(dp(8)),
+                    TextNode(
+                        text = BigText(note),
+                        textSizePx = sp(14f),
+                        color = 0xFF5F6368.toInt(),
+                        layoutWidth = LayoutDimension.MatchParent
+                    )
                 )
             )
         )

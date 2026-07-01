@@ -16,6 +16,18 @@ import com.simple.ui.precompute.MeasureContext
 
 enum class OutlineState { IDLE, LOADING, HIDDEN }
 
+data class Outline(
+    val backgroundColor: Int = Color.TRANSPARENT,
+    val strokeColor: Int = Color.BLACK,
+    val strokeWidth: Float = 1f,
+    val cornerRadius: Float = 0f,
+    val dashWidth: Float = 0f,
+    val dashGap: Float = 0f,
+    val loadingSegmentRatio: Float = 0.5f,
+    val loadingDurationMs: Long = 1200L,
+    val state: OutlineState = OutlineState.IDLE,
+)
+
 /**
  * Draws a rounded outline effect in its measured bounds, including dashed strokes
  * and the loading segment behavior from the legacy OutlineDelegate.

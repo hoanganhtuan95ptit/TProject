@@ -103,91 +103,194 @@ data class ConstraintNode(
 ) : LayoutNode() {
 
     companion object {
+
         /** ID reserved trỏ đến container — dùng làm target trong constraint. */
         const val PARENT = "parent"
     }
 
+    private data class ConstraintMeasureState(
+        val bounds: HashMap<String, IntArray>,
+        val specs: HashMap<String, DrawSpec>,
+        val remaining: MutableList<ConstraintChild>
+    )
+
+    private data class MeasuredChild(
+        val spec: DrawSpec,
+        val width: Int,
+        val height: Int
+    )
+
     override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec {
+
         val p = padding
         val measureMaxW = layoutWidth.maxForMeasure(c.maxWidth)
         val measureMaxH = layoutHeight.maxForMeasure(c.maxHeight)
         val innerW = (measureMaxW - p.horizontal).coerceAtLeast(0)
         val innerH = (measureMaxH - p.vertical).coerceAtLeast(0)
 
-        // bounds[id] = [left, top, right, bottom] trong toạ độ inner
-        val bounds = HashMap<String, IntArray>(children.size + 1)
-        bounds[PARENT] = intArrayOf(0, 0, innerW, innerH)
-
-        val specs = HashMap<String, DrawSpec>(children.size)
-        val remaining = children.toMutableList()
+        val state = createMeasureState(innerW, innerH)
 
         // Iterative resolve: mỗi pass giải những child đã đủ dependency
         repeat(children.size + 1) {
-            for (child in remaining.toList()) {         // snapshot để an toàn khi remove
-                if (!canResolve(child, bounds)) continue
 
-                // 1. Tính kích thước khả dụng để truyền vào đo
-                val avW = availW(child, bounds, innerW)
-                val avH = availH(child, bounds, innerH)
-
-                // 2. Đo child node (background thread safe)
-                val measuredSpec = ctx.measure(
-                    child.node,
-                    Constraints(avW.coerceAtLeast(0), avH.coerceAtLeast(0)),
-                    0, 0
-                )
-
-                // 3. Kích thước thực của child sau khi biết spec
-                val cw = when (val d = child.width) {
-                    is LayoutDimension.Fixed -> d.px
-                    LayoutDimension.MatchParent -> avW
-                    LayoutDimension.WrapContent -> measuredSpec.width
-                }
-                val ch = when (val d = child.height) {
-                    is LayoutDimension.Fixed -> d.px
-                    LayoutDimension.MatchParent -> avH
-                    LayoutDimension.WrapContent -> measuredSpec.height
-                }
-                specs[child.id] = measuredSpec.withSize(cw, ch)
-
-                // 4. Giải vị trí dựa trên constraint + bias
-                val l = resolveLeft(child, bounds, cw, innerW)
-                val t = resolveTop(child, bounds, ch, innerH)
-                bounds[child.id] = intArrayOf(l, t, l + cw, t + ch)
-                remaining.remove(child)
-            }
+            resolveReadyChildren(ctx, state, innerW, innerH)
         }
 
-        // Fallback: child còn lại (dependency cycle hoặc thiếu constraint)
-        for (child in remaining) {
-            val measuredSpec = ctx.measure(child.node, Constraints(innerW, innerH), 0, 0)
-            val cw = when (val d = child.width) {
-                is LayoutDimension.Fixed -> d.px
-                LayoutDimension.MatchParent -> innerW
-                LayoutDimension.WrapContent -> measuredSpec.width
-            }
-            val ch = when (val d = child.height) {
-                is LayoutDimension.Fixed -> d.px
-                LayoutDimension.MatchParent -> innerH
-                LayoutDimension.WrapContent -> measuredSpec.height
-            }
-            specs[child.id] = measuredSpec.withSize(cw, ch)
-            bounds[child.id] = intArrayOf(0, 0, cw, ch)
-        }
+        placeUnresolvedChildren(ctx, state, innerW, innerH)
 
-        // Gán vị trí thực (thêm padding container) và trả GroupSpec
-        val placed = children.mapNotNull { child ->
-            val b = bounds[child.id] ?: return@mapNotNull null
-            specs[child.id]?.withPosition(p.left + b[0], p.top + b[1])
-        }
-
-        // Chiều rộng = max right của các child + padding; chiều cao = max bottom + padding
-        val naturalW = (children.mapNotNull { bounds[it.id]?.get(2) }.maxOrNull() ?: 0) + p.horizontal
-        val naturalH = (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
+        val placed = buildPlacedSpecs(state, p)
+        val naturalW = naturalWidth(state.bounds, p)
+        val naturalH = naturalHeight(state.bounds, p)
         val totalW = layoutWidth.resolve(naturalW.coerceAtLeast(p.horizontal), c.maxWidth)
         val totalH = layoutHeight.resolve(naturalH.coerceAtLeast(p.vertical), c.maxHeight)
         return GroupSpec(x, y, totalW, totalH, placed, this)
     }
+
+    private fun createMeasureState(innerW: Int, innerH: Int): ConstraintMeasureState {
+
+        // bounds[id] = [left, top, right, bottom] trong toạ độ inner
+        val bounds = HashMap<String, IntArray>(children.size + 1)
+        bounds[PARENT] = intArrayOf(0, 0, innerW, innerH)
+
+        return ConstraintMeasureState(
+            bounds = bounds,
+            specs = HashMap(children.size),
+            remaining = children.toMutableList()
+        )
+    }
+
+    private fun resolveReadyChildren(
+        ctx: MeasureContext,
+        state: ConstraintMeasureState,
+        innerW: Int,
+        innerH: Int
+    ) {
+
+        // Snapshot để an toàn khi remove trong lúc duyệt.
+        state.remaining.toList().forEach { child ->
+
+            resolveReadyChild(ctx, state, child, innerW, innerH)
+        }
+    }
+
+    private fun resolveReadyChild(
+        ctx: MeasureContext,
+        state: ConstraintMeasureState,
+        child: ConstraintChild,
+        innerW: Int,
+        innerH: Int
+    ) {
+
+        if (!canResolve(child, state.bounds)) return
+
+        val measured = measureResolvedChild(ctx, child, state.bounds, innerW, innerH)
+        val left = resolveLeft(child, state.bounds, measured.width, innerW)
+        val top = resolveTop(child, state.bounds, measured.height, innerH)
+
+        state.specs[child.id] = measured.spec
+        state.bounds[child.id] = intArrayOf(left, top, left + measured.width, top + measured.height)
+        state.remaining.remove(child)
+    }
+
+    private fun placeUnresolvedChildren(
+        ctx: MeasureContext,
+        state: ConstraintMeasureState,
+        innerW: Int,
+        innerH: Int
+    ) {
+
+        // Fallback: child còn lại (dependency cycle hoặc thiếu constraint).
+        state.remaining.forEach { child ->
+
+            val measured = measureFallbackChild(ctx, child, innerW, innerH)
+            state.specs[child.id] = measured.spec
+            state.bounds[child.id] = intArrayOf(0, 0, measured.width, measured.height)
+        }
+    }
+
+    private fun measureResolvedChild(
+        ctx: MeasureContext,
+        child: ConstraintChild,
+        bounds: Map<String, IntArray>,
+        innerW: Int,
+        innerH: Int
+    ): MeasuredChild {
+
+        val availableWidth = availW(child, bounds, innerW)
+        val availableHeight = availH(child, bounds, innerH)
+        val measuredSpec = ctx.measure(
+            child.node,
+            Constraints(availableWidth.coerceAtLeast(0), availableHeight.coerceAtLeast(0)),
+            0,
+            0
+        )
+
+        return measuredSpec.toMeasuredChild(child, availableWidth, availableHeight)
+    }
+
+    private fun measureFallbackChild(
+        ctx: MeasureContext,
+        child: ConstraintChild,
+        innerW: Int,
+        innerH: Int
+    ): MeasuredChild {
+
+        val measuredSpec = ctx.measure(child.node, Constraints(innerW, innerH), 0, 0)
+        return measuredSpec.toMeasuredChild(child, innerW, innerH)
+    }
+
+    private fun DrawSpec.toMeasuredChild(
+        child: ConstraintChild,
+        availableWidth: Int,
+        availableHeight: Int
+    ): MeasuredChild {
+
+        val width = resolveChildWidth(child, this, availableWidth)
+        val height = resolveChildHeight(child, this, availableHeight)
+
+        return MeasuredChild(
+            spec = withSize(width, height),
+            width = width,
+            height = height
+        )
+    }
+
+    private fun resolveChildWidth(
+        child: ConstraintChild,
+        measuredSpec: DrawSpec,
+        availableWidth: Int
+    ): Int =
+        when (val dimension = child.width) {
+
+            is LayoutDimension.Fixed -> dimension.px
+            LayoutDimension.MatchParent -> availableWidth
+            LayoutDimension.WrapContent -> measuredSpec.width
+        }
+
+    private fun resolveChildHeight(
+        child: ConstraintChild,
+        measuredSpec: DrawSpec,
+        availableHeight: Int
+    ): Int =
+        when (val dimension = child.height) {
+
+            is LayoutDimension.Fixed -> dimension.px
+            LayoutDimension.MatchParent -> availableHeight
+            LayoutDimension.WrapContent -> measuredSpec.height
+        }
+
+    private fun buildPlacedSpecs(state: ConstraintMeasureState, p: EdgeInsets): List<DrawSpec> =
+        children.mapNotNull { child ->
+
+            val bounds = state.bounds[child.id] ?: return@mapNotNull null
+            state.specs[child.id]?.withPosition(p.left + bounds[0], p.top + bounds[1])
+        }
+
+    private fun naturalWidth(bounds: Map<String, IntArray>, p: EdgeInsets): Int =
+        (children.mapNotNull { bounds[it.id]?.get(2) }.maxOrNull() ?: 0) + p.horizontal
+
+    private fun naturalHeight(bounds: Map<String, IntArray>, p: EdgeInsets): Int =
+        (children.mapNotNull { bounds[it.id]?.get(3) }.maxOrNull() ?: 0) + p.vertical
 
     // ── Dependency check ────────────────────────────────────────────────────
 
@@ -200,7 +303,10 @@ data class ConstraintNode(
             child.endToEndOf,     child.endToStartOf,
             child.topToTopOf,     child.topToBottomOf,
             child.bottomToBottomOf, child.bottomToTopOf
-        ).all { it in bounds }
+        ).all { target ->
+
+            target in bounds
+        }
 
     // ── Available size ──────────────────────────────────────────────────────
 
@@ -212,6 +318,7 @@ data class ConstraintNode(
      */
     private fun availW(child: ConstraintChild, bounds: Map<String, IntArray>, innerW: Int): Int =
         when (val d = child.width) {
+
             is LayoutDimension.Fixed -> d.px
             LayoutDimension.MatchParent ->
                 (endAnchor(child, bounds, innerW) - startAnchor(child, bounds)).coerceAtLeast(0)
@@ -220,6 +327,7 @@ data class ConstraintNode(
 
     private fun availH(child: ConstraintChild, bounds: Map<String, IntArray>, innerH: Int): Int =
         when (val d = child.height) {
+
             is LayoutDimension.Fixed -> d.px
             LayoutDimension.MatchParent ->
                 (bottomAnchor(child, bounds, innerH) - topAnchor(child, bounds)).coerceAtLeast(0)
@@ -230,6 +338,7 @@ data class ConstraintNode(
 
     private fun startAnchor(c: ConstraintChild, b: Map<String, IntArray>): Int =
         when {
+
             c.startToStartOf != null -> b[c.startToStartOf]!![0] + c.marginStart
             c.startToEndOf   != null -> b[c.startToEndOf]!![2]   + c.marginStart
             else                     -> c.marginStart
@@ -237,6 +346,7 @@ data class ConstraintNode(
 
     private fun endAnchor(c: ConstraintChild, b: Map<String, IntArray>, innerW: Int): Int =
         when {
+
             c.endToEndOf   != null -> b[c.endToEndOf]!![2]   - c.marginEnd
             c.endToStartOf != null -> b[c.endToStartOf]!![0] - c.marginEnd
             else                   -> innerW - c.marginEnd
@@ -244,6 +354,7 @@ data class ConstraintNode(
 
     private fun topAnchor(c: ConstraintChild, b: Map<String, IntArray>): Int =
         when {
+
             c.topToTopOf    != null -> b[c.topToTopOf]!![1]    + c.marginTop
             c.topToBottomOf != null -> b[c.topToBottomOf]!![3] + c.marginTop
             else                    -> c.marginTop
@@ -251,6 +362,7 @@ data class ConstraintNode(
 
     private fun bottomAnchor(c: ConstraintChild, b: Map<String, IntArray>, innerH: Int): Int =
         when {
+
             c.bottomToBottomOf != null -> b[c.bottomToBottomOf]!![3] - c.marginBottom
             c.bottomToTopOf    != null -> b[c.bottomToTopOf]!![1]    - c.marginBottom
             else                       -> innerH - c.marginBottom
@@ -268,11 +380,13 @@ data class ConstraintNode(
      * - Không có gì  → 0.
      */
     private fun resolveLeft(c: ConstraintChild, b: Map<String, IntArray>, cw: Int, innerW: Int): Int {
+
         val hasStart = c.startToStartOf != null || c.startToEndOf != null
         val hasEnd   = c.endToEndOf     != null || c.endToStartOf != null
         val sa = if (hasStart) startAnchor(c, b) else null
         val ea = if (hasEnd) endAnchor(c, b, innerW) else null
         return when {
+
             hasStart && hasEnd ->
                 sa!! + ((ea!! - sa - cw).coerceAtLeast(0) * c.horizontalBias).toInt()
             hasStart -> sa!!
@@ -287,11 +401,13 @@ data class ConstraintNode(
      * Logic đối xứng với [resolveLeft] theo trục dọc.
      */
     private fun resolveTop(c: ConstraintChild, b: Map<String, IntArray>, ch: Int, innerH: Int): Int {
+
         val hasTop    = c.topToTopOf       != null || c.topToBottomOf    != null
         val hasBottom = c.bottomToBottomOf != null || c.bottomToTopOf    != null
         val ta = if (hasTop) topAnchor(c, b) else null
         val ba = if (hasBottom) bottomAnchor(c, b, innerH) else null
         return when {
+
             hasTop && hasBottom ->
                 ta!! + ((ba!! - ta - ch).coerceAtLeast(0) * c.verticalBias).toInt()
             hasTop    -> ta!!

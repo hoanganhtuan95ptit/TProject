@@ -6,11 +6,15 @@ import android.text.style.CharacterStyle
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 
 private val bigSpanConvertList by lazy {
+
     try {
+
         ServiceLoader.load(BigSpanConvert::class.java).toList()
     } catch (_: ServiceConfigurationError) {
+
         emptyList()
     }
 }
@@ -19,7 +23,7 @@ private val bigSpanConvertList by lazy {
 // BigText có thể được build từ bất kỳ thread nào (kể cả Dispatchers.Default
 // trước khi gắn vào view), nên dùng ConcurrentHashMap để an toàn.
 private val bigSpanConvertCache =
-    ConcurrentHashMap<kotlin.reflect.KClass<out BigSpan>, BigSpanConvert>()
+    ConcurrentHashMap<KClass<out BigSpan>, BigSpanConvert>()
 
 data class BigText(
     val text: String,
@@ -35,45 +39,87 @@ data class BigText(
 
     var textChar: CharSequence
         get() = _textChar ?: synchronized(this) {
+
             _textChar ?: buildTextChar().also { _textChar = it }
         }
         set(value) {
+
             _textChar = value
         }
 
     fun refresh(): BigText {
-        synchronized(this) { _textChar = buildTextChar() }
+
+        synchronized(this) {
+
+            _textChar = buildTextChar()
+        }
+
         return this
     }
 
     private fun buildTextChar(): CharSequence {
+
         if (spans.isEmpty()) return text
+
         val spannable = SpannableString(text)
-        spans.forEach { span ->
-            span.styles.forEach { styleData ->
-                val style = styleData.toAndroidSpan()
-                spannable.setSpan(style, span.range.start, span.range.end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
+        spans.forEach { style ->
+
+            style.applyTo(spannable)
         }
+
         return spannable
     }
 
-    private fun BigSpan.toAndroidSpan(): CharacterStyle {
-        val klass = this::class
-        val cached = bigSpanConvertCache[klass]
-        if (cached != null) {
-            cached.getAndroidSpan(this)?.let { return it }
-            bigSpanConvertCache.remove(klass, cached)
-        }
+    private fun BigStyle.applyTo(spannable: Spannable) {
 
-        for (converter in bigSpanConvertList) {
+        styles.forEach { styleData ->
+
+            applyStyle(spannable, styleData)
+        }
+    }
+
+    private fun BigStyle.applyStyle(spannable: Spannable, styleData: BigSpan) {
+
+        spannable.setSpan(
+            styleData.toAndroidSpan(),
+            range.start,
+            range.end,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+    }
+
+    private fun BigSpan.toAndroidSpan(): CharacterStyle {
+
+        val klass = this::class
+        findCachedAndroidSpan(klass)?.let { return it }
+
+        return findServiceAndroidSpan(klass)
+            ?: error("No BigSpanConvert found for ${klass.simpleName}")
+    }
+
+    private fun BigSpan.findCachedAndroidSpan(klass: KClass<out BigSpan>): CharacterStyle? {
+
+        val cached = bigSpanConvertCache[klass] ?: return null
+        val span = cached.getAndroidSpan(this)
+        if (span != null) return span
+
+        bigSpanConvertCache.remove(klass, cached)
+        return null
+    }
+
+    private fun BigSpan.findServiceAndroidSpan(klass: KClass<out BigSpan>): CharacterStyle? {
+
+        bigSpanConvertList.forEach { converter ->
+
             val span = converter.getAndroidSpan(this)
             if (span != null) {
+
                 bigSpanConvertCache.putIfAbsent(klass, converter)
                 return span
             }
         }
-        error("No BigSpanConvert found for ${klass.simpleName}")
+
+        return null
     }
 
     companion object {

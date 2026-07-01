@@ -59,6 +59,14 @@ sealed class LayoutDimension {
 
     companion object {
         fun fixed(px: Int) = Fixed(px)
+
+        fun Int.toLayoutDimension() = if (this == -1) {
+            MatchParent
+        } else if (this == -2) {
+            WrapContent
+        } else {
+            Fixed(this)
+        }
     }
 }
 

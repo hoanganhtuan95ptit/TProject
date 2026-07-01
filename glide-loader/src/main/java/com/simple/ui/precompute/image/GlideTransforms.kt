@@ -6,6 +6,7 @@ import com.simple.ui.precompute.image.BigTransformConverters.build
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 
 /**
  * Map từ [BigTransform] (engine, không biết Glide) sang [Transformation]
@@ -15,19 +16,23 @@ import java.util.concurrent.ConcurrentHashMap
  * (hoặc gom vào 1 converter chung), annotate bằng AutoService.
  */
 interface BigTransformConvert {
+
     fun convert(transform: BigTransform): Transformation<Bitmap>?
 }
 
 private val bigTransformConvertList by lazy {
+
     try {
+
         ServiceLoader.load(BigTransformConvert::class.java).toList()
     } catch (_: ServiceConfigurationError) {
+
         emptyList()
     }
 }
 
 private val bigTransformConvertCache =
-    ConcurrentHashMap<kotlin.reflect.KClass<out BigTransform>, BigTransformConvert>()
+    ConcurrentHashMap<KClass<out BigTransform>, BigTransformConvert>()
 
 /**
  * Registry. Engine giữ [BigImage.transforms] dạng list marker;
@@ -36,29 +41,50 @@ private val bigTransformConvertCache =
 object BigTransformConverters {
 
     /**
-     * Build [Transformation] tổng hợp từ [BigImage.transforms]; trả về `null`
-     * nếu list rỗng hoặc không có converter nào match.
+     * Build [Transformation] tổng hợp từ [BigImage.transforms]; trả về list rỗng
+     * nếu input rỗng hoặc không có converter nào match.
      */
     fun build(transforms: List<BigTransform>): List<Transformation<Bitmap>> {
+
         if (transforms.isEmpty()) return emptyList()
+
         return transforms.mapNotNull { it.toGlideTransformation() }
     }
 
     private fun BigTransform.toGlideTransformation(): Transformation<Bitmap>? {
-        val klass = this::class
-        val cached = bigTransformConvertCache[klass]
-        if (cached != null) {
-            cached.convert(this)?.let { return it }
-            bigTransformConvertCache.remove(klass, cached)
-        }
 
-        for (converter in bigTransformConvertList) {
+        val klass = this::class
+        findCachedTransformation(klass)?.let { return it }
+
+        return findServiceTransformation(klass)
+    }
+
+    private fun BigTransform.findCachedTransformation(
+        klass: KClass<out BigTransform>
+    ): Transformation<Bitmap>? {
+
+        val cached = bigTransformConvertCache[klass] ?: return null
+        val transform = cached.convert(this)
+        if (transform != null) return transform
+
+        bigTransformConvertCache.remove(klass, cached)
+        return null
+    }
+
+    private fun BigTransform.findServiceTransformation(
+        klass: KClass<out BigTransform>
+    ): Transformation<Bitmap>? {
+
+        bigTransformConvertList.forEach { converter ->
+
             val transform = converter.convert(this)
             if (transform != null) {
+
                 bigTransformConvertCache.putIfAbsent(klass, converter)
                 return transform
             }
         }
+
         return null
     }
 }
