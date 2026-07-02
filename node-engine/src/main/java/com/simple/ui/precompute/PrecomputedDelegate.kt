@@ -3,6 +3,9 @@ package com.simple.ui.precompute
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.SoundEffectConstants
 import android.view.View
 
 class PrecomputedDelegate(private val view: View, context: Context, attrs: AttributeSet?) {
@@ -43,6 +46,35 @@ class PrecomputedDelegate(private val view: View, context: Context, attrs: Attri
             if (view.isAttachedToWindow) old?.detach(view)
         }
 
+    /**
+     * GestureDetector chuyên trách dispatch tap → onClick của node trúng
+     * hit-test. Dùng detector chuẩn Android để tự động lo tap-slop,
+     * double-tap window, cancel khi kéo ra ngoài.
+     */
+    private val gestureDetector = GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+
+            override fun onDown(e: MotionEvent): Boolean {
+                // Chỉ "claim" chuỗi event khi điểm chạm rơi trên một spec
+                // clickable — trả false để parent (nếu có) xử lý các case
+                // trống. Kết quả: view chỉ intercept khi thực sự có target.
+                return spec?.hitTest(e.x.toInt(), e.y.toInt()) != null
+            }
+
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                val hit = spec?.hitTest(e.x.toInt(), e.y.toInt()) ?: return false
+                val cb = hit.node?.onClick ?: return false
+                view.playSoundEffect(SoundEffectConstants.CLICK)
+                cb.invoke()
+                // performClick() để giữ đúng contract accessibility của View
+                // (TalkBack, autofill, testing framework...).
+                view.performClick()
+                return true
+            }
+        }
+    )
+
     fun onDraw(canvas: Canvas) {
         spec?.draw(canvas)
     }
@@ -53,5 +85,13 @@ class PrecomputedDelegate(private val view: View, context: Context, attrs: Attri
 
     fun onDetachedFromWindow() {
         spec?.detach(view)
+    }
+
+    /**
+     * Trả về `true` nếu event đã được tiêu thụ bởi node clickable. Caller
+     * (PrecomputedView) fall back về `super.onTouchEvent` khi false.
+     */
+    fun onTouchEvent(event: MotionEvent): Boolean {
+        return gestureDetector.onTouchEvent(event)
     }
 }

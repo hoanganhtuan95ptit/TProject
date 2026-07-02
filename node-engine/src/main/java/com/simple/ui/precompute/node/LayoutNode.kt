@@ -129,6 +129,19 @@ abstract class LayoutNode {
     open val id: Any? = null
 
     /**
+     * Callback chạy trên **main thread** khi user tap trong bounds của node
+     * này (top-most con thắng — xem [com.simple.ui.precompute.DrawSpec.hitTest]).
+     *
+     * `null` = node "trong suốt" với click; hit-test sẽ bỏ qua và tìm parent
+     * gần nhất có [onClick].
+     *
+     * Bản thân property chỉ là giá trị bất biến để build spec — dispatch thực
+     * tế do [com.simple.ui.precompute.PrecomputedView] xử lý qua
+     * [android.view.GestureDetector]. Không giữ ref tới View / Context ở đây.
+     */
+    open val onClick: (() -> Unit)? = null
+
+    /**
      * Tự đo và trả về [com.simple.ui.precompute.DrawSpec] tại vị trí ([x], [y]).
      * Dùng [ctx] để đệ quy đo các child nếu là node container.
      */

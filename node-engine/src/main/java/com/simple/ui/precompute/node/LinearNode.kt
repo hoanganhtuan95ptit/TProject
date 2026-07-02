@@ -143,4 +143,16 @@ data class GroupSpec(
 
     override fun withPosition(newLeft: Int, newTop: Int) =
         copy(left = newLeft, top = newTop)
+
+    override fun hitTest(x: Int, y: Int): DrawSpec? {
+        val lx = x - left
+        val ly = y - top
+        if (lx < 0 || ly < 0 || lx >= width || ly >= height) return null
+        // Duyệt ngược: child vẽ sau (topmost) thắng.
+        for (i in children.indices.reversed()) {
+            val hit = children[i].hitTest(lx, ly)
+            if (hit != null) return hit
+        }
+        return if (node.onClick != null) this else null
+    }
 }

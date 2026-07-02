@@ -3,6 +3,7 @@ package com.simple.ui.precompute
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 
 /**
@@ -39,5 +40,18 @@ class PrecomputedView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         delegate.onDetachedFromWindow()
         super.onDetachedFromWindow()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Delegate hit-test qua spec tree; nếu không có node clickable trúng,
+        // fall back về hành vi View mặc định.
+        if (delegate.onTouchEvent(event)) return true
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        // Onclick thực tế đã invoke ở node level trong delegate; ở đây chỉ
+        // super để giữ accessibility contract (không nhân đôi callback).
+        return super.performClick()
     }
 }

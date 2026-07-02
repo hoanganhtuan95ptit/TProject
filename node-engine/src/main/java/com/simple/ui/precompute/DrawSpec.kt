@@ -149,6 +149,24 @@ abstract class DrawSpec {
                 axisReusable(n.layoutHeight, height, c.maxHeight)
     }
 
+    /**
+     * Hit-test tại điểm ([x], [y]) trong hệ toạ độ **local của parent**
+     * (view space nếu spec này là root).
+     *
+     * Trả về spec sâu nhất (top-most con) có `node?.onClick != null` bao phủ
+     * điểm này. Không có → null.
+     *
+     * Base impl chỉ check bounds + [LayoutNode.onClick] của [node]. Container
+     * spec (GroupSpec, SizedSpec) override để đệ quy vào children — child vẽ
+     * sau (topmost) được ưu tiên.
+     */
+    open fun hitTest(x: Int, y: Int): DrawSpec? {
+        val lx = x - left
+        val ly = y - top
+        if (lx < 0 || ly < 0 || lx >= width || ly >= height) return null
+        return if (node?.onClick != null) this else null
+    }
+
     private fun axisReusable(mode: LayoutDimension, cached: Int, maxAvail: Int): Boolean {
         if (maxAvail == Int.MAX_VALUE) {
             // Unbounded parent: Fixed & WrapContent chỉ phụ thuộc node content,
@@ -200,5 +218,15 @@ internal data class SizedSpec(
 
     override fun onDetachedFromWindow(view: View) {
         child.detach(view)
+    }
+
+    override fun hitTest(x: Int, y: Int): DrawSpec? {
+        val lx = x - left
+        val ly = y - top
+        if (lx < 0 || ly < 0 || lx >= width || ly >= height) return null
+        // Child được đặt tại (0,0) trong local space của SizedSpec — xem withSize.
+        val hit = child.hitTest(lx, ly)
+        if (hit != null) return hit
+        return if (node?.onClick != null) this else null
     }
 }
