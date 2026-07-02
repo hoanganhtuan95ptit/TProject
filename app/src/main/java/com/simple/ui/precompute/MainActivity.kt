@@ -28,6 +28,7 @@ import com.simple.ui.precompute.node.GaugeScoreNode
 import com.simple.ui.precompute.node.ImageNode
 import com.simple.ui.precompute.node.LayoutDimension
 import com.simple.ui.precompute.node.LayoutNode
+import com.simple.ui.precompute.node.LineNode
 import com.simple.ui.precompute.node.LinearNode
 import com.simple.ui.precompute.node.Orientation
 import com.simple.ui.precompute.node.OutlineNode
@@ -286,9 +287,41 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, noteSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 11 — TrySpeak chip từ ảnh mẫu
+            //   Không thêm node mới:
+            //     ConstraintNode  → stack outline dưới content
+            //     OutlineNode     → viền xanh nét đứt bo tròn
+            //     LinearNode      → icon + text nằm ngang
+            //     ImageNode       → icon micro
+            //     TextNode        → "Thử nói"
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑪ TrySpeakChip  —  ảnh mẫu → node cũ")
+
+            val trySpeakSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildTrySpeakChipFromImage(), Constraints(cardWidth))
+                )
+            }
+            addCards(container, trySpeakSpecs)
+
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 12 — DashedLineText từ ảnh mẫu
+            //   LineNode  → đường gạch ngang nét đứt
+            //   TextNode  → text căn giữa phía dưới line
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑫ DashedLineText  —  LineNode + TextNode")
+
+            val dashedLineTextSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildDashedLineTextFromImage(), Constraints(cardWidth))
+                )
+            }
+            addCards(container, dashedLineTextSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size + noteSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode + XML NoteRow, measured on bg thread"
+                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size + noteSpecs.size + trySpeakSpecs.size + dashedLineTextSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode + XML NoteRow + TrySpeakChip + LineNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -805,6 +838,96 @@ class MainActivity : AppCompatActivity() {
                 ),
                 startToStartOf = ConstraintNode.PARENT,
                 topToTopOf = ConstraintNode.PARENT,
+            ),
+        )
+    )
+
+    /**
+     * **TrySpeakChip** — dựng lại giao diện trong ảnh bằng các node cũ.
+     *
+     * ```
+     * ┌ · · · · · · · · ┐
+     * │  (mic)  Thử nói  │
+     * └ · · · · · · · · ┘
+     * ```
+     */
+    private fun buildTrySpeakChipFromImage(): LayoutNode {
+
+        val green = 0xFF19D96B.toInt()
+
+        return ConstraintNode(
+            children = listOf(
+                ConstraintChild(
+                    id = "outline",
+                    node = OutlineNode(
+                        backgroundColor = Color.WHITE,
+                        strokeColor = green,
+                        strokeWidth = dp(2).toFloat(),
+                        cornerRadius = dp(24).toFloat(),
+                        dashWidth = dp(5).toFloat(),
+                        dashGap = dp(5).toFloat(),
+                        layoutWidth = LayoutDimension.MatchParent,
+                        layoutHeight = LayoutDimension.MatchParent,
+                    ),
+                    startToStartOf = "content",
+                    endToEndOf = "content",
+                    topToTopOf = "content",
+                    bottomToBottomOf = "content",
+                    width = LayoutDimension.MatchParent,
+                    height = LayoutDimension.MatchParent,
+                ),
+                ConstraintChild(
+                    id = "content",
+                    node = LinearNode(
+                        orientation = Orientation.HORIZONTAL,
+                        crossAlign = CrossAlign.CENTER,
+                        gap = dp(10),
+                        padding = EdgeInsets(left = dp(16), top = dp(10), right = dp(18), bottom = dp(10)),
+                        children = listOf(
+                            ImageNode(
+                                source = BigImage(R.drawable.ic_try_speak_mic),
+                                layoutWidth = LayoutDimension.Fixed(dp(22)),
+                                layoutHeight = LayoutDimension.Fixed(dp(22)),
+                            ),
+                            TextNode(
+                                text = BigText("Thử nói"),
+                                textSizePx = sp(20f),
+                                color = green,
+                                maxLines = 1,
+                            ),
+                        )
+                    ),
+                    startToStartOf = ConstraintNode.PARENT,
+                    topToTopOf = ConstraintNode.PARENT,
+                )
+            )
+        )
+    }
+
+    /**
+     * **DashedLineText** — dựng lại ảnh mẫu bằng LineNode + TextNode.
+     */
+    private fun buildDashedLineTextFromImage(): LayoutNode = LinearNode(
+        orientation = Orientation.VERTICAL,
+        crossAlign = CrossAlign.CENTER,
+        gap = dp(12),
+        padding = EdgeInsets(top = dp(14)),
+        layoutWidth = LayoutDimension.MatchParent,
+        layoutHeight = LayoutDimension.Fixed(dp(86)),
+        children = listOf(
+            LineNode(
+                color = 0xFFB8B8B8.toInt(),
+                strokeWidth = 1.5f * dp,
+                dashWidth = dp(6).toFloat(),
+                dashGap = dp(6).toFloat(),
+                layoutWidth = LayoutDimension.Fixed(dp(240)),
+                layoutHeight = LayoutDimension.Fixed(dp(2)),
+            ),
+            TextNode(
+                text = BigText("rất vui được quen biết bạn"),
+                textSizePx = sp(20f),
+                color = 0xFF202124.toInt(),
+                maxLines = 1,
             ),
         )
     )
