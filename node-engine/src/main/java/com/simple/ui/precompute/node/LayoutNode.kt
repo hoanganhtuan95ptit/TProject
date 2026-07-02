@@ -9,6 +9,7 @@ import com.simple.ui.precompute.MeasureContext
 //   TextNode   → TextNode.kt
 //   ImageNode  → ImageNode.kt
 //   LinearNode → LinearNode.kt
+//   FlexboxNode → FlexboxNode.kt
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

@@ -23,6 +23,13 @@ import com.simple.ui.precompute.node.ConstraintNode
 import com.simple.ui.precompute.node.Constraints
 import com.simple.ui.precompute.node.CrossAlign
 import com.simple.ui.precompute.node.EdgeInsets
+import com.simple.ui.precompute.node.FlexAlignContent
+import com.simple.ui.precompute.node.FlexAlignItems
+import com.simple.ui.precompute.node.FlexChild
+import com.simple.ui.precompute.node.FlexDirection
+import com.simple.ui.precompute.node.FlexJustifyContent
+import com.simple.ui.precompute.node.FlexWrap
+import com.simple.ui.precompute.node.FlexboxNode
 import com.simple.ui.precompute.node.GaugeArcNode
 import com.simple.ui.precompute.node.GaugeScoreNode
 import com.simple.ui.precompute.node.ImageNode
@@ -319,9 +326,22 @@ class MainActivity : AppCompatActivity() {
             }
             addCards(container, dashedLineTextSpecs)
 
+            // ════════════════════════════════════════════════════════════════
+            // DEMO 13 — FlexboxNode
+            //   FlexboxLayout-style: row + wrap + justifyContent + alignItems.
+            // ════════════════════════════════════════════════════════════════
+            addSectionLabel(container, "⑬ FlexboxNode  —  wrap tags giống FlexboxLayout")
+
+            val flexboxSpecs = withContext(Dispatchers.Default) {
+                listOf(
+                    LayoutEngine.measure(buildFlexboxTagsCard(), Constraints(cardWidth))
+                )
+            }
+            addCards(container, flexboxSpecs)
+
             // Footer
             container.addView(TextView(this@MainActivity).apply {
-                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size + noteSpecs.size + trySpeakSpecs.size + dashedLineTextSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode + XML NoteRow + TrySpeakChip + LineNode, measured on bg thread"
+                text = "${items.size * 4 + profiles.size + 4 + progressBarSpecs.size + noteSpecs.size + trySpeakSpecs.size + dashedLineTextSpecs.size + flexboxSpecs.size} cards — LinearNode + ConstraintNode + OutlineNode + ImageTransform + PhoneticChip + ScoreGauge + ProgressBarNode + XML NoteRow + TrySpeakChip + LineNode + FlexboxNode, measured on bg thread"
                 setTextColor(Color.GRAY)
                 textSize = 12f
                 gravity = Gravity.CENTER
@@ -447,6 +467,75 @@ class MainActivity : AppCompatActivity() {
                         layoutWidth = LayoutDimension.MatchParent
                     )
                 )
+            )
+        )
+    )
+
+    /**
+     * **FlexboxNode** card: tag chips tự wrap sang dòng mới khi hết chiều rộng.
+     */
+    private fun buildFlexboxTagsCard(): LayoutNode {
+        val tags = listOf(
+            "Kotlin" to 0xFFE91E63.toInt(),
+            "Android" to 0xFF4CAF50.toInt(),
+            "Precompute" to 0xFF2196F3.toInt(),
+            "LayoutEngine" to 0xFF795548.toInt(),
+            "FlexboxLayout" to 0xFF6200EE.toInt(),
+            "wrapBefore" to 0xFFFF9800.toInt(),
+            "space_between" to 0xFF009688.toInt(),
+            "alignItems" to 0xFF3F51B5.toInt(),
+            "DrawSpec" to 0xFF607D8B.toInt(),
+        )
+
+        return FlexboxNode(
+            flexDirection = FlexDirection.ROW,
+            flexWrap = FlexWrap.WRAP,
+            justifyContent = FlexJustifyContent.SPACE_BETWEEN,
+            alignItems = FlexAlignItems.CENTER,
+            alignContent = FlexAlignContent.FLEX_START,
+            gap = dp(8),
+            padding = EdgeInsets.all(dp(16)),
+            layoutWidth = LayoutDimension.MatchParent,
+            children = tags.mapIndexed { index, (label, color) ->
+                FlexChild(
+                    node = buildTagChip(label, color),
+                    order = index,
+                    wrapBefore = label == "space_between"
+                )
+            }
+        )
+    }
+
+    private fun buildTagChip(label: String, color: Int): LayoutNode = ConstraintNode(
+        children = listOf(
+            ConstraintChild(
+                id = "bg",
+                node = OutlineNode(
+                    backgroundColor = color,
+                    strokeWidth = 0f,
+                    cornerRadius = dp(18).toFloat(),
+                    layoutWidth = LayoutDimension.MatchParent,
+                    layoutHeight = LayoutDimension.MatchParent,
+                ),
+                startToStartOf = "text",
+                endToEndOf = "text",
+                topToTopOf = "text",
+                bottomToBottomOf = "text",
+                width = LayoutDimension.MatchParent,
+                height = LayoutDimension.MatchParent,
+            ),
+            ConstraintChild(
+                id = "text",
+                node = TextNode(
+                    text = BigText(label),
+                    textSizePx = sp(12f),
+                    color = Color.WHITE,
+                    typeface = Typeface.DEFAULT_BOLD,
+                    maxLines = 1,
+                    padding = EdgeInsets.symmetric(h = dp(10), v = dp(6)),
+                ),
+                startToStartOf = ConstraintNode.PARENT,
+                topToTopOf = ConstraintNode.PARENT,
             )
         )
     )
