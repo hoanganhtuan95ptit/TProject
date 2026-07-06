@@ -4,9 +4,10 @@ interface PrecomputedHost {
 
     val delegate: PrecomputedDelegate
 
-    var spec: DrawSpec?
-        get() = delegate.spec
+    /** Kết quả đo phẳng từ [LayoutEngine.measure] hoặc [LayoutEngine.build]. */
+    var result: LayoutResult?
+        get() = delegate.result
         set(value) {
-            delegate.spec = value
+            delegate.result = value
         }
 }

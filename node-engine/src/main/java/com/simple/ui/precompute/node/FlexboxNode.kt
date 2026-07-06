@@ -153,7 +153,7 @@ data class FlexboxNode(
             isRow = isRow
         )
 
-        return GroupSpec(x, y, width, height, placed, this)
+        return FlexboxSpec(x, y, width, height, this, placed)
     }
 
     private fun measureLines(
@@ -454,6 +454,24 @@ data class FlexboxNode(
 
     private val FlexDirection.isMainReverse: Boolean
         get() = this == FlexDirection.ROW_REVERSE || this == FlexDirection.COLUMN_REVERSE
+}
+
+class FlexboxSpec(
+    override val left: Int,
+    override val top: Int,
+    override val width: Int,
+    override val height: Int,
+    override val node: FlexboxNode,
+    override val children: List<DrawSpec>
+) : GroupSpec(left, top, width, height, node, children) {
+
+    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec {
+        if (newLeft == left && newTop == top) return this
+        val dx = newLeft - left
+        val dy = newTop - top
+        val shiftedChildren = children.map { it.withPosition(it.left + dx, it.top + dy) }
+        return FlexboxSpec(newLeft, newTop, width, height, node, shiftedChildren)
+    }
 }
 
 private data class OrderedFlexChild(

@@ -15,17 +15,25 @@
         android:textColor="@color/white"
         android:background="?attr/colorPrimary" />
 
-    <ScrollView
+    <TextView
+        android:id="@+id/fps_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="6dp"
+        android:textColor="#111"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:background="#FFECB3"
+        android:text="fps —" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp">
-
-        <LinearLayout
-            android:id="@+id/container"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-    </ScrollView>
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="16dp"
+        android:scrollbars="vertical" />
 
 </LinearLayout>

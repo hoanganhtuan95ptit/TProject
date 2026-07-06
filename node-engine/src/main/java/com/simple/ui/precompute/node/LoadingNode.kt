@@ -32,8 +32,7 @@ data class Outline(
  * Draws a rounded outline effect in its measured bounds, including dashed strokes
  * and the loading segment behavior from the legacy OutlineDelegate.
  */
-data class OutlineNode(
-    val backgroundColor: Int = Color.TRANSPARENT,
+data class LoadingNode(
     val strokeColor: Int = Color.BLACK,
     val strokeWidth: Float = 1f,
     val cornerRadius: Float = 0f,
@@ -42,6 +41,7 @@ data class OutlineNode(
     val loadingSegmentRatio: Float = 0.5f,
     val loadingDurationMs: Long = 1200L,
     val state: OutlineState = OutlineState.IDLE,
+    override val id: Any = Unit,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
@@ -52,20 +52,19 @@ data class OutlineNode(
         c: Constraints,
         x: Int,
         y: Int
-    ): OutlineSpec {
+    ): LoadingSpec {
         val p = padding
         val naturalW = p.horizontal
         val naturalH = p.vertical
         val w = layoutWidth.resolve(naturalW, c.maxWidth)
         val h = layoutHeight.resolve(naturalH, c.maxHeight)
 
-        return OutlineSpec(
+        return LoadingSpec(
             left = x,
             top = y,
             width = w,
             height = h,
             padding = p,
-            backgroundColor = backgroundColor,
             strokeColor = strokeColor,
             strokeWidth = strokeWidth,
             cornerRadius = cornerRadius,
@@ -79,13 +78,12 @@ data class OutlineNode(
     }
 }
 
-class OutlineSpec(
+open class LoadingSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
     val padding: EdgeInsets,
-    backgroundColor: Int,
     strokeColor: Int,
     strokeWidth: Float,
     cornerRadius: Float,
@@ -94,15 +92,8 @@ class OutlineSpec(
     loadingSegmentRatio: Float,
     loadingDurationMs: Long,
     state: OutlineState,
-    override val node: OutlineNode
+    override val node: LayoutNode
 ) : DrawSpec() {
-
-    var backgroundColor: Int = backgroundColor
-        set(value) {
-            field = value
-            backgroundPaint.color = value
-            invalidate()
-        }
 
     var strokeColor: Int = strokeColor
         set(value) {
@@ -165,19 +156,14 @@ class OutlineSpec(
     var state: OutlineState = state
         private set
 
-    private enum class InternalState { IDLE, LOADING, HIDDEN, SHRINKING, GROWING }
-
-    private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = this@OutlineSpec.backgroundColor
-    }
+    enum class InternalState { IDLE, LOADING, HIDDEN, SHRINKING, GROWING }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        color = this@OutlineSpec.strokeColor
-        setStrokeWidth(this@OutlineSpec.strokeWidth)
+        color = this@LoadingSpec.strokeColor
+        setStrokeWidth(this@LoadingSpec.strokeWidth)
     }
 
     private val fullPath = Path()
@@ -187,15 +173,15 @@ class OutlineSpec(
     private var pathLength = 0f
     private var outlineRadius = 0f
 
-    private var internalState = state.toInternalState()
-    private var settledInternalState = internalState
-    private var tailPos = 0f
-    private var segLen = state.targetSegmentLength()
-    private var targetSegLen = segLen
+    var internalState = state.toInternalState()
+    var settledInternalState = internalState
+    var tailPos = 0f
+    var segLen = state.targetSegmentLength()
+    var targetSegLen = segLen
 
-    private var animator: ValueAnimator? = null
-    private var attachedView: View? = null
-    private var lastFrameMs: Long = 0L
+    var animator: ValueAnimator? = null
+    var attachedView: View? = null
+    var lastFrameMs: Long = 0L
 
     init {
         updateDashEffect()
@@ -247,7 +233,6 @@ class OutlineSpec(
     fun isHidden(): Boolean = state == OutlineState.HIDDEN
 
     override fun onDrawContent(canvas: Canvas) {
-        drawBackground(canvas)
         drawOutline(canvas)
     }
 
@@ -266,13 +251,6 @@ class OutlineSpec(
 
     override fun withSize(newWidth: Int, newHeight: Int): DrawSpec =
         copyTo(left, top, newWidth.coerceAtLeast(0), newHeight.coerceAtLeast(0))
-
-    private fun drawBackground(canvas: Canvas) {
-        if (Color.alpha(backgroundColor) == 0) return
-        if (outlineRect.width() <= 0f || outlineRect.height() <= 0f) return
-
-        canvas.drawRoundRect(outlineRect, outlineRadius, outlineRadius, backgroundPaint)
-    }
 
     private fun drawOutline(canvas: Canvas) {
         if (pathLength <= 0f) return
@@ -406,14 +384,13 @@ class OutlineSpec(
         attachedView?.postInvalidateOnAnimation()
     }
 
-    private fun copyTo(newLeft: Int, newTop: Int, newWidth: Int, newHeight: Int): OutlineSpec =
-        OutlineSpec(
+    open fun copyTo(newLeft: Int, newTop: Int, newWidth: Int, newHeight: Int): DrawSpec =
+        LoadingSpec(
             left = newLeft,
             top = newTop,
             width = newWidth,
             height = newHeight,
             padding = padding,
-            backgroundColor = backgroundColor,
             strokeColor = strokeColor,
             strokeWidth = strokeWidth,
             cornerRadius = cornerRadius,
@@ -431,21 +408,21 @@ class OutlineSpec(
             it.targetSegLen = targetSegLen
         }
 
-    private fun OutlineState.targetSegmentLength(): Float =
+    fun OutlineState.targetSegmentLength(): Float =
         when (this) {
             OutlineState.HIDDEN -> 0f
             OutlineState.LOADING -> loadingSegmentRatio
             OutlineState.IDLE -> 1f
         }
 
-    private fun OutlineState.toInternalState(): InternalState =
+    fun OutlineState.toInternalState(): InternalState =
         when (this) {
             OutlineState.HIDDEN -> InternalState.HIDDEN
             OutlineState.LOADING -> InternalState.LOADING
             OutlineState.IDLE -> InternalState.IDLE
         }
 
-    private fun wrap(v: Float): Float {
+    fun wrap(v: Float): Float {
         var x = v % 1f
         if (x < 0f) x += 1f
         return x

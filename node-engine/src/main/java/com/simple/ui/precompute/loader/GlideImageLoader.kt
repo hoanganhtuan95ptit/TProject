@@ -8,6 +8,7 @@ import android.os.HandlerThread
 import android.os.Looper
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestBuilder
+import com.bumptech.glide.RequestManager
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.simple.ui.precompute.node.ImageSpec
@@ -40,15 +41,36 @@ class GlideImageLoader(context: Context) : ImageLoader {
     }
 
     private val bgHandler = Handler(handlerThread.looper)
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainLooper = Looper.getMainLooper()
+    private val mainHandler = Handler(mainLooper)
 
     override val dispatcher: Executor = Executor { command ->
 
         bgHandler.post(command)
     }
 
+    /**
+     * Cache `RequestManager` app-scope. `Glide.with(appContext)` là hash lookup
+     * + validation nội bộ ở mỗi call — không đắt, nhưng nhân với 300+ lần
+     * load/cancel trong 1 lần scroll thì cộng dồn. Ref singleton nên có thể
+     * cache thẳng (không đổi theo lifecycle).
+     */
+    private val requestManager: RequestManager by lazy(LazyThreadSafetyMode.NONE) {
+        Glide.with(appContext)
+    }
+
     /** Tracking target theo spec để cancel chính xác. Truy cập từ bg thread. */
     private val targets = WeakHashMap<ImageSpec, CustomTarget<Drawable>>()
+
+    /**
+     * Chạy [block] trên main. Nếu caller đã ở main (hiếm với loader nhưng có
+     * thể xảy ra khi callback Glide chain lại vào load) → gọi thẳng, bỏ round-trip
+     * qua Handler queue (1 lần post = 1 lần chờ tới lượt trong MessageQueue).
+     */
+    private inline fun runOnMain(crossinline block: () -> Unit) {
+        if (Looper.myLooper() === mainLooper) block()
+        else mainHandler.post { block() }
+    }
 
     private data class RequestSize(
         val width: Int,
@@ -67,10 +89,7 @@ class GlideImageLoader(context: Context) : ImageLoader {
         targets[spec] = target
 
         // Glide yêu cầu into(target) chạy ở main thread.
-        mainHandler.post {
-
-            request.into(target)
-        }
+        runOnMain { request.into(target) }
     }
 
     override fun cancel(spec: ImageSpec) {
@@ -79,10 +98,7 @@ class GlideImageLoader(context: Context) : ImageLoader {
         val target = targets.remove(spec) ?: return
 
         // Glide.clear cũng đụng RequestManager — post về main cho an toàn.
-        mainHandler.post {
-
-            Glide.with(appContext).clear(target)
-        }
+        runOnMain { requestManager.clear(target) }
     }
 
     private fun ImageSpec.requestSize(): RequestSize =
@@ -93,7 +109,7 @@ class GlideImageLoader(context: Context) : ImageLoader {
 
     private fun createRequest(spec: ImageSpec, size: RequestSize): RequestBuilder<Drawable> {
 
-        var withModel: RequestBuilder<Drawable> = Glide.with(appContext)
+        var withModel: RequestBuilder<Drawable> = requestManager
             .load(spec.source.source)
             .override(size.width, size.height)
 

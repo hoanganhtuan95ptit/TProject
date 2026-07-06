@@ -143,7 +143,7 @@ data class ConstraintNode(
         val naturalH = naturalHeight(state.bounds, p)
         val totalW = layoutWidth.resolve(naturalW.coerceAtLeast(p.horizontal), c.maxWidth)
         val totalH = layoutHeight.resolve(naturalH.coerceAtLeast(p.vertical), c.maxHeight)
-        return GroupSpec(x, y, totalW, totalH, placed, this)
+        return GroupSpec(x, y, totalW, totalH, this, placed)
     }
 
     private fun createMeasureState(innerW: Int, innerH: Int): ConstraintMeasureState {

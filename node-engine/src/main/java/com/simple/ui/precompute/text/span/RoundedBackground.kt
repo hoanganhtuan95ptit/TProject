@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.text.style.CharacterStyle
 import android.text.style.ReplacementSpan
+import android.util.Log
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
 import com.simple.ui.precompute.text.BigImageSpan

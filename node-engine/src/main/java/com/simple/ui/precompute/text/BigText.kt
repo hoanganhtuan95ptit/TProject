@@ -9,7 +9,7 @@ data class BigText(
     val spans: ArrayList<BigStyle> = arrayListOf()
 ) {
 
-    var textChar: CharSequence =  SpannableString(text).apply {
+    val textChar: CharSequence =  SpannableString(text).apply {
 
         spans.forEach { style ->
 

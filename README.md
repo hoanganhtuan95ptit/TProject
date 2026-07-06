@@ -403,8 +403,12 @@ OutlineNode(
 | `loadingDurationMs` | Thời gian segment chạy hết một vòng |
 | `state` | `OutlineState.IDLE` vẽ full outline, `LOADING` vẽ segment chạy, `HIDDEN` ẩn outline |
 
-Sau khi đã gán spec cho `PrecomputedView`, nếu giữ được reference kiểu `OutlineSpec`,
-có thể đổi trạng thái động:
+Sau khi đã gán result cho `PrecomputedView`, lấy reference `OutlineSpec` từ list
+phẳng để đổi trạng thái động:
+
+```kotlin
+val outlineSpec = result.draws.filterIsInstance<OutlineSpec>().first()
+```
 
 ```kotlin
 outlineSpec.setLoading(loading = true, show = true, animate = true)
@@ -667,7 +671,7 @@ Nếu nội dung lớn hơn size cuối cùng, `DrawSpec` sẽ clip trong bounds
 
 ```kotlin
 // Bắt buộc gọi từ background thread
-val spec: DrawSpec = withContext(Dispatchers.Default) {
+val result: LayoutResult = withContext(Dispatchers.Default) {
     LayoutEngine.measure(
         node        = myLayoutNode,
         constraints = Constraints(maxWidth = containerWidthPx)
@@ -712,17 +716,17 @@ Constraints(maxWidth = 400, maxHeight = 200)       // giới hạn cả 2 chiề
 
 > 💡 Nên dùng `layout_width="match_parent"` để view có width cố định, giúp `doOnPreDraw` lấy width chính xác.
 
-### 6.2 Gán spec
+### 6.2 Gán result
 
 ```kotlin
 // Luôn gán trên UI thread
-binding.precomputedView.spec = drawSpec
+binding.precomputedView.result = layoutResult
 
 // Xoá (trả về kích thước 0x0)
-binding.precomputedView.spec = null
+binding.precomputedView.result = null
 ```
 
-`PrecomputedView.spec` setter tự động xử lý:
+`PrecomputedView.result` setter tự động xử lý:
 
 | Tình huống | Hành vi |
 |-----------|---------|
@@ -740,8 +744,8 @@ binding.precomputedView.spec = null
 ```kotlin
 class CardViewModel(private val appContext: Context) : ViewModel() {
 
-    private val _spec = MutableStateFlow<DrawSpec?>(null)
-    val spec: StateFlow<DrawSpec?> = _spec.asStateFlow()
+    private val _result = MutableStateFlow<LayoutResult?>(null)
+    val result: StateFlow<LayoutResult?> = _result.asStateFlow()
 
     fun loadCard(word: String, ipa: String, widthPx: Int) {
         viewModelScope.launch {
@@ -754,7 +758,7 @@ class CardViewModel(private val appContext: Context) : ViewModel() {
             }
 
             // 3. Emit sang UI
-            _spec.value = result
+            _result.value = result
         }
     }
 
@@ -765,7 +769,7 @@ class CardViewModel(private val appContext: Context) : ViewModel() {
         measureJob?.cancel()
         measureJob = viewModelScope.launch {
             val node = buildCardNode(word, ipa)
-            _spec.value = withContext(Dispatchers.Default) {
+            _result.value = withContext(Dispatchers.Default) {
                 LayoutEngine.measure(node, Constraints(widthPx))
             }
         }
@@ -796,8 +800,8 @@ override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     // Collect spec và gán cho view
     viewLifecycleOwner.lifecycleScope.launch {
         viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            viewModel.spec.collect { spec ->
-                binding.precomputedView.spec = spec
+            viewModel.result.collect { result ->
+                binding.precomputedView.result = result
             }
         }
     }
@@ -822,23 +826,23 @@ class WordAdapter(
 
         // 1. Cancel job đo của lần bind trước (tránh race condition khi scroll nhanh)
         holder.measureJob?.cancel()
-        holder.binding.precomputedView.spec = null   // clear để tránh hiện nội dung cũ
+        holder.binding.precomputedView.result = null   // clear để tránh hiện nội dung cũ
 
         // 2. Đo async
         holder.measureJob = scope.launch {
             val node = buildWordNode(item)
-            val spec = withContext(Dispatchers.Default) {
+            val result = withContext(Dispatchers.Default) {
                 LayoutEngine.measure(node, Constraints(itemWidthPx))
             }
             // 3. Gán kết quả (launch đảm bảo luôn chạy trên Main)
-            holder.binding.precomputedView.spec = spec
+            holder.binding.precomputedView.result = result
         }
     }
 
     override fun onViewRecycled(holder: WordViewHolder) {
         super.onViewRecycled(holder)
         holder.measureJob?.cancel()
-        holder.binding.precomputedView.spec = null
+        holder.binding.precomputedView.result = null
     }
 
     private fun buildWordNode(item: WordItem): LayoutNode = LinearNode(
@@ -1153,7 +1157,7 @@ LinearNode(
 | Cần border / loading outline | Dùng `OutlineNode` |
 | `ConstraintNode` chain / Guideline / Barrier | Chưa hỗ trợ |
 
-> ⚠️ **Lưu ý:** `PrecomputedView` báo kích thước `(0, 0)` khi `spec == null`. Tránh đặt view này trong `wrap_content` parent khi chưa có spec — layout có thể bị sụp đến 0 chiều cao.
+> ⚠️ **Lưu ý:** `PrecomputedView` báo kích thước `(0, 0)` khi `result == null`. Tránh đặt view này trong `wrap_content` parent khi chưa có result — layout có thể bị sụp đến 0 chiều cao.
 
 ---
 
@@ -1219,12 +1223,12 @@ val fullWidthTitle = TextNode(
 )
 
 // ── Đo (background thread) ───────────────────────────────────────────────────
-val spec: DrawSpec = withContext(Dispatchers.Default) {
+val result: LayoutResult = withContext(Dispatchers.Default) {
     LayoutEngine.measure(row, Constraints(containerWidthPx))
 }
 
 // ── Gán cho view (UI thread) ─────────────────────────────────────────────────
-precomputedView.spec = spec       // auto requestLayout + invalidate
+precomputedView.result = result       // auto requestLayout + invalidate
 
 // ── ImageLoader (Application.onCreate) ──────────────────────────────────────
 ImageLoader.install(GlideImageLoader(this))

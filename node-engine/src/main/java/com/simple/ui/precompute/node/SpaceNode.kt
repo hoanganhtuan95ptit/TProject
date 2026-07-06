@@ -3,6 +3,9 @@ package com.simple.ui.precompute.node
 import android.graphics.Canvas
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.node.SpaceNode.Companion.fixed
+import com.simple.ui.precompute.node.SpaceNode.Companion.horizontal
+import com.simple.ui.precompute.node.SpaceNode.Companion.vertical
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SpaceNode — node chỉ chiếm chỗ, không vẽ gì.
@@ -23,15 +26,12 @@ data class SpaceNode(
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
 ) : LayoutNode() {
 
-    override fun measure(
-        ctx: MeasureContext,
-        c: Constraints,
-        x: Int,
-        y: Int
-    ): SpaceSpec {
+    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): SpaceSpec {
+
         val p = padding
         val w = layoutWidth.resolve(p.horizontal, c.maxWidth)
         val h = layoutHeight.resolve(p.vertical, c.maxHeight)
+
         return SpaceSpec(
             left = x,
             top = y,
@@ -42,17 +42,20 @@ data class SpaceNode(
     }
 
     companion object {
-        fun horizontal(widthPx: Int): SpaceNode =
-            fixed(widthPx = widthPx, heightPx = 0)
+        fun horizontal(widthPx: Int): SpaceNode = fixed(
+            widthPx = widthPx,
+            heightPx = 0
+        )
 
-        fun vertical(heightPx: Int): SpaceNode =
-            fixed(widthPx = 0, heightPx = heightPx)
+        fun vertical(heightPx: Int): SpaceNode = fixed(
+            widthPx = 0,
+            heightPx = heightPx
+        )
 
-        fun fixed(widthPx: Int, heightPx: Int): SpaceNode =
-            SpaceNode(
-                layoutWidth = LayoutDimension.Fixed(widthPx.coerceAtLeast(0)),
-                layoutHeight = LayoutDimension.Fixed(heightPx.coerceAtLeast(0))
-            )
+        fun fixed(widthPx: Int, heightPx: Int): SpaceNode = SpaceNode(
+            layoutWidth = LayoutDimension.Fixed(widthPx.coerceAtLeast(0)),
+            layoutHeight = LayoutDimension.Fixed(heightPx.coerceAtLeast(0))
+        )
     }
 }
 
@@ -68,14 +71,19 @@ data class SpaceSpec(
     override val node: SpaceNode
 ) : DrawSpec() {
 
-    override fun onDrawContent(canvas: Canvas) = Unit
+    /** Chỉ vẽ debug rect cố định — pixel không đổi giữa các frame. */
+    override val isStatic: Boolean = true
 
-    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        copy(left = newLeft, top = newTop)
+    override fun onDrawContent(canvas: Canvas) {
+    }
 
-    override fun withSize(newWidth: Int, newHeight: Int): DrawSpec =
-        copy(
-            width = newWidth.coerceAtLeast(0),
-            height = newHeight.coerceAtLeast(0)
-        )
+    override fun withPosition(newLeft: Int, newTop: Int): DrawSpec = copy(
+        left = newLeft,
+        top = newTop
+    )
+
+    override fun withSize(newWidth: Int, newHeight: Int): DrawSpec = copy(
+        width = newWidth.coerceAtLeast(0),
+        height = newHeight.coerceAtLeast(0)
+    )
 }

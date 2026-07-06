@@ -7,9 +7,9 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.View
 import com.simple.ui.precompute.DrawSpec
-import com.simple.ui.precompute.loader.ImageLoader
 import com.simple.ui.precompute.MeasureContext
 import com.simple.ui.precompute.image.BigImage
+import com.simple.ui.precompute.loader.ImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -157,21 +157,24 @@ class ImageSpec(
 
     override fun onAttachedToWindow(view: View) {
         attachedView = view
-        val s = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        scope = s
 
-        drawable?.let {
-            it.callback = drawableCallback
-            (it as? Animatable)?.start()
+        val d = drawable
+        if (d != null) {
+            // Đã có ảnh từ lần load trước: không cần load lại, cũng khỏi
+            // cấp phát scope (chỉ dùng cho load).
+            d.callback = drawableCallback
+            (d as? Animatable)?.start()
+            return
         }
 
-        // Đã có ảnh từ lần load trước thì không cần load lại.
-        if (drawable != null) return
-
         val loader = ImageLoader.get() ?: return
+        val s = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope = s
         // Load off-main; nếu detach trước khi xong sẽ tự cancel theo scope.
         s.launch(Dispatchers.Default) {
-            loader.load(this@ImageSpec) { view.postInvalidateOnAnimation() }
+            loader.load(this@ImageSpec) {
+                view.postInvalidateOnAnimation()
+            }
         }
     }
 
@@ -188,6 +191,28 @@ class ImageSpec(
         scope?.cancel()
         scope = null
 
+        val loader = ImageLoader.get() ?: return
+        loader.dispatcher.execute { loader.cancel(this) }
+    }
+
+    /**
+     * Release: chấm dứt hẳn spec. Buông drawable (mất ref → BitmapDrawable
+     * bên trong có thể được GC / bitmap pool tái sử dụng), cancel scope
+     * còn treo nếu có, và bảo loader cancel job đang chạy dở.
+     *
+     * Không recycle Bitmap của Drawable: bitmap có thể thuộc Glide cache /
+     * dùng chung nhiều view — recycle sẽ phá cache dùng ở nơi khác.
+     */
+    override fun onRelease() {
+        val d = drawable
+        if (d != null) {
+            d.callback = null
+            (d as? Animatable)?.stop()
+        }
+        drawable = null
+        attachedView = null
+        scope?.cancel()
+        scope = null
         val loader = ImageLoader.get() ?: return
         loader.dispatcher.execute { loader.cancel(this) }
     }

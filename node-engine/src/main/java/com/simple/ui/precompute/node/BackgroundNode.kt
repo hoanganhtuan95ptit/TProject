@@ -56,7 +56,7 @@ data class BackgroundNode(
     }
 }
 
-class BackgroundSpec(
+open class BackgroundSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
@@ -68,8 +68,11 @@ class BackgroundSpec(
     cornerRadius: Float,
     dashWidth: Float,
     dashGap: Float,
-    override val node: BackgroundNode
+    override val node: LayoutNode
 ) : DrawSpec() {
+
+    /** Fill/stroke thuần → pixel không đổi giữa các frame; đủ điều kiện gom cache. */
+    override val isStatic: Boolean = true
 
     var backgroundColor: Int = backgroundColor
         set(value) {
@@ -130,14 +133,16 @@ class BackgroundSpec(
     }
 
     override fun onDrawContent(canvas: Canvas) {
-        if (rect.width() <= 0f || rect.height() <= 0f) return
+        if (rect.isEmpty || backgroundColor == Color.TRANSPARENT) return
 
-        if (Color.alpha(backgroundColor) != 0) {
-            canvas.drawRoundRect(rect, radius, radius, fillPaint)
+        if (fillPaint.alpha != 0) {
+            if (radius > 0f) canvas.drawRoundRect(rect, radius, radius, fillPaint)
+            else canvas.drawRect(rect, fillPaint)
         }
 
-        if (strokeWidth > 0f) {
-            canvas.drawRoundRect(rect, radius, radius, strokePaint)
+        if (strokeWidth > 0f && strokePaint.alpha != 0) {
+            if (radius > 0f) canvas.drawRoundRect(rect, radius, radius, strokePaint)
+            else canvas.drawRect(rect, strokePaint)
         }
     }
 
@@ -174,7 +179,7 @@ class BackgroundSpec(
         }
     }
 
-    private fun copyTo(newLeft: Int, newTop: Int, newWidth: Int, newHeight: Int): BackgroundSpec =
+    open fun copyTo(newLeft: Int, newTop: Int, newWidth: Int, newHeight: Int): BackgroundSpec =
         BackgroundSpec(
             left = newLeft,
             top = newTop,

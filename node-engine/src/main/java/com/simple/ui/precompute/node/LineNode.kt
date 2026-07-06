@@ -72,6 +72,9 @@ class LineSpec(
     override val node: LineNode
 ) : DrawSpec() {
 
+    /** Vẽ 1 line với paint bất biến giữa các frame → static. */
+    override val isStatic: Boolean = true
+
     var color: Int = color
         set(value) {
             field = value

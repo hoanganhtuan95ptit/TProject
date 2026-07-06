@@ -71,14 +71,14 @@ sealed class LayoutDimension {
     }
 }
 
-internal fun LayoutDimension.maxForMeasure(parentMax: Int): Int =
+fun LayoutDimension.maxForMeasure(parentMax: Int): Int =
     when (this) {
         is LayoutDimension.Fixed -> px.capTo(parentMax)
         LayoutDimension.MatchParent -> parentMax
         LayoutDimension.WrapContent -> parentMax
     }.coerceAtLeast(0)
 
-internal fun LayoutDimension.resolve(contentSize: Int, parentMax: Int): Int {
+fun LayoutDimension.resolve(contentSize: Int, parentMax: Int): Int {
     val resolved = when (this) {
         is LayoutDimension.Fixed -> px
         LayoutDimension.MatchParent -> {

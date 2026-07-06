@@ -1,14 +1,26 @@
 package com.simple.ui.precompute.node
 
-import android.graphics.Canvas
-import android.view.View
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LinearNode — mô tả một container xếp children theo chiều ngang / dọc.
+// LinearChild — wrapper để gán weight cho child trong LinearNode.
 // GroupSpec  — kết quả sau khi đo: danh sách DrawSpec con đã gán vị trí.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Wrapper cho [LayoutNode] để gán thêm các thuộc tính chỉ có ý nghĩa trong [LinearNode].
+ * Tương tự [ConstraintChild] hay [com.simple.ui.precompute.node.FlexChild].
+ */
+data class LinearChild(
+    val node: LayoutNode,
+    val weight: Float = 0f
+)
+
+/** Extension helper để tạo LinearChild nhanh. */
+fun LayoutNode.linearChild(weight: Float = 0f): LinearChild = LinearChild(this, weight)
 
 /**
  * Mô tả một container xếp [children] tuần tự theo [orientation].
@@ -17,13 +29,11 @@ import com.simple.ui.precompute.MeasureContext
  * - [crossAlign]: căn chỉnh trên trục phụ (START / CENTER / END).
  * - [padding]: padding bao ngoài toàn bộ container.
  *
- * Đo 2 lượt:
- *   1. Pass 1 — đo tất cả children để biết cross size lớn nhất.
- *   2. Pass 2 — gán vị trí với cross-align qua [com.simple.ui.precompute.DrawSpec.withPosition].
+ * Hỗ trợ `weight` thông qua [LinearChild].
  */
 data class LinearNode(
     val orientation: Orientation,
-    val children: List<LayoutNode>,
+    val children: List<LinearChild>,
     val gap: Int = 0,
     val crossAlign: CrossAlign = CrossAlign.START,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
@@ -43,67 +53,101 @@ data class LinearNode(
         val innerMaxW = (measureMaxW - p.horizontal).coerceAtLeast(0)
         val innerMaxH = (measureMaxH - p.vertical).coerceAtLeast(0)
 
-        // 1st pass: đo mọi child, chưa cần biết vị trí.
-        val measured = ArrayList<DrawSpec>(children.size)
+        val isHorizontal = orientation == Orientation.HORIZONTAL
+        val mainMax = if (isHorizontal) innerMaxW else innerMaxH
+        val crossMaxLimit = if (isHorizontal) innerMaxH else innerMaxW
+
+        val totalWeight = children.sumOf { it.weight.toDouble() }.toFloat()
+        val measured = arrayOfNulls<DrawSpec>(children.size)
         var mainUsed = 0
         var crossMax = 0
 
-        children.forEachIndexed { i, child ->
-            val cc = when (orientation) {
-                Orientation.HORIZONTAL ->
-                    Constraints((innerMaxW - mainUsed).coerceAtLeast(0), innerMaxH)
-                Orientation.VERTICAL ->
-                    Constraints(innerMaxW, (innerMaxH - mainUsed).coerceAtLeast(0))
+        // Pass 1: Đo các child không có weight
+        children.forEachIndexed { i, childWrap ->
+            if (childWrap.weight <= 0f) {
+                val remainingMain = (mainMax - mainUsed).coerceAtLeast(0)
+                val cc = if (isHorizontal) {
+                    Constraints(remainingMain, crossMaxLimit)
+                } else {
+                    Constraints(crossMaxLimit, remainingMain)
+                }
+                val s = ctx.measure(childWrap.node, cc, 0, 0)
+                measured[i] = s
+                mainUsed += if (isHorizontal) s.width else s.height
+                if (i < children.lastIndex) mainUsed += gap
+                val crossSize = if (isHorizontal) s.height else s.width
+                if (crossSize > crossMax) crossMax = crossSize
+            } else {
+                if (i < children.lastIndex) mainUsed += gap
             }
-            val s = ctx.measure(child, cc, 0, 0)
-            measured.add(s)
-
-            val mainSize = if (orientation == Orientation.HORIZONTAL) s.width else s.height
-            val crossSize = if (orientation == Orientation.HORIZONTAL) s.height else s.width
-            mainUsed += mainSize
-            if (i < children.lastIndex) mainUsed += gap
-            if (crossSize > crossMax) crossMax = crossSize
         }
 
-        // 2nd pass: gán vị trí dựa trên cross-align — dùng withPosition(),
-        // không cần biết concrete type.
-        val placed = ArrayList<DrawSpec>(measured.size)
+        // Pass 2: Phân phối khoảng trống còn lại cho các child có weight
+        if (totalWeight > 0f) {
+            val remainingMain = (mainMax - mainUsed).coerceAtLeast(0)
+            var distributedMain = 0
+            val weightedIndices = children.indices.filter { children[it].weight > 0f }
+
+            weightedIndices.forEachIndexed { i, idx ->
+                val weight = children[idx].weight
+                val share = if (i == weightedIndices.lastIndex) {
+                    remainingMain - distributedMain
+                } else {
+                    (remainingMain * weight / totalWeight).roundToInt()
+                }.coerceAtLeast(0)
+
+                distributedMain += share
+
+                val cc = if (isHorizontal) {
+                    Constraints(share, crossMaxLimit)
+                } else {
+                    Constraints(crossMaxLimit, share)
+                }
+
+                val s = ctx.measure(children[idx].node, cc, 0, 0)
+                // Ép size theo share
+                val finalS = if (isHorizontal) {
+                    s.withSize(share, s.height)
+                } else {
+                    s.withSize(s.width, share)
+                }
+
+                measured[idx] = finalS
+                val crossSize = if (isHorizontal) finalS.height else finalS.width
+                if (crossSize > crossMax) crossMax = crossSize
+            }
+            mainUsed += distributedMain
+        }
+
+        val finalMeasured = measured.filterNotNull()
+
+        // Pass 3: Gán vị trí
+        val placed = ArrayList<DrawSpec>(finalMeasured.size)
         var cursor = 0
-        val naturalMain = if (measured.isEmpty()) 0 else mainUsed
-        val naturalW = when (orientation) {
-            Orientation.HORIZONTAL -> naturalMain + p.horizontal
-            Orientation.VERTICAL -> crossMax + p.horizontal
-        }
-        val naturalH = when (orientation) {
-            Orientation.HORIZONTAL -> crossMax + p.vertical
-            Orientation.VERTICAL -> naturalMain + p.vertical
-        }
+        val naturalMain = if (finalMeasured.isEmpty()) 0 else mainUsed
+        val naturalW = if (isHorizontal) naturalMain + p.horizontal else crossMax + p.horizontal
+        val naturalH = if (isHorizontal) crossMax + p.vertical else naturalMain + p.vertical
+
         val w = layoutWidth.resolve(naturalW, c.maxWidth)
         val h = layoutHeight.resolve(naturalH, c.maxHeight)
-        val crossSlot = when (orientation) {
-            Orientation.HORIZONTAL -> (h - p.vertical).coerceAtLeast(0)
-            Orientation.VERTICAL -> (w - p.horizontal).coerceAtLeast(0)
-        }
+        val crossSlot = if (isHorizontal) (h - p.vertical).coerceAtLeast(0) else (w - p.horizontal).coerceAtLeast(0)
 
-        for (s in measured) {
-            val (cx, cy) = when (orientation) {
-                Orientation.HORIZONTAL -> {
-                    val offCross = crossOffset(crossSlot, s.height, crossAlign)
-                    Pair(p.left + cursor, p.top + offCross)
-                }
-                Orientation.VERTICAL -> {
-                    val offCross = crossOffset(crossSlot, s.width, crossAlign)
-                    Pair(p.left + offCross, p.top + cursor)
-                }
+        children.indices.forEach { i ->
+            val s = measured[i] ?: return@forEach
+            val (cx, cy) = if (isHorizontal) {
+                val offCross = crossOffset(crossSlot, s.height, crossAlign)
+                Pair(p.left + cursor, p.top + offCross)
+            } else {
+                val offCross = crossOffset(crossSlot, s.width, crossAlign)
+                Pair(p.left + offCross, p.top + cursor)
             }
-            placed.add(s.withPosition(cx, cy))
+            placed.add(s.withPosition(x + cx, y + cy))
 
-            val mainSize = if (orientation == Orientation.HORIZONTAL) s.width else s.height
+            val mainSize = if (isHorizontal) s.width else s.height
             cursor += mainSize + gap
         }
-        if (placed.isNotEmpty()) cursor -= gap
 
-        return GroupSpec(x, y, w, h, placed, this)
+        return GroupSpec(x, y, w, h, this, placed)
     }
 
     private companion object {
@@ -113,46 +157,5 @@ data class LinearNode(
                 CrossAlign.CENTER -> (parent - child).coerceAtLeast(0) / 2
                 CrossAlign.END -> (parent - child).coerceAtLeast(0)
             }
-    }
-}
-
-/**
- * Kết quả đo của [LinearNode]. Đệ quy: mỗi child tự [draw] trong toạ độ
- * đã translate của GroupSpec — không cần biết concrete type của child.
- */
-data class GroupSpec(
-    override val left: Int,
-    override val top: Int,
-    override val width: Int,
-    override val height: Int,
-    val children: List<DrawSpec>,
-    override val node: LayoutNode
-) : DrawSpec() {
-
-    override fun onDrawContent(canvas: Canvas) {
-        for (i in children.indices) children[i].draw(canvas)
-    }
-
-    override fun onAttachedToWindow(view: View) {
-        for (i in children.indices) children[i].attach(view)
-    }
-
-    override fun onDetachedFromWindow(view: View) {
-        for (i in children.indices) children[i].detach(view)
-    }
-
-    override fun withPosition(newLeft: Int, newTop: Int) =
-        copy(left = newLeft, top = newTop)
-
-    override fun hitTest(x: Int, y: Int): DrawSpec? {
-        val lx = x - left
-        val ly = y - top
-        if (lx < 0 || ly < 0 || lx >= width || ly >= height) return null
-        // Duyệt ngược: child vẽ sau (topmost) thắng.
-        for (i in children.indices.reversed()) {
-            val hit = children[i].hitTest(lx, ly)
-            if (hit != null) return hit
-        }
-        return if (node.onClick != null) this else null
     }
 }

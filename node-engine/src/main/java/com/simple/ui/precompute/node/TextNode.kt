@@ -1,6 +1,7 @@
 package com.simple.ui.precompute.node
 
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -9,14 +10,16 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
+import android.util.Log
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
 import com.simple.ui.precompute.text.BigText
+import com.simple.ui.precompute.utils.CompatRenderNode
 import kotlin.math.ceil
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextNode — mô tả một đoạn text cần đo/vẽ.
-// TextSpec  — kết quả sau khi đo: giữ StaticLayout đã build sẵn, vẽ 0-alloc.
+// TextSpec  — kết quả sau khi đo: giữ Bitmap đã render sẵn, vẽ cực nhanh.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -75,32 +78,51 @@ data class TextNode(
         val contentH = layout.height + p.vertical
         val w = layoutWidth.resolve(contentW, c.maxWidth)
         val h = layoutHeight.resolve(contentH, c.maxHeight)
-        return TextSpec(x, y, w, h, p.left, p.top, layout, this)
+
+        // Pre-render text vào CompatRenderNode để onDrawContent đạt hiệu năng cao nhất.
+        val renderNode = CompatRenderNode("TextSpec")
+        renderNode.setPosition(0, 0, w.coerceAtLeast(1), h.coerceAtLeast(1))
+        renderNode.record { canvas ->
+            // Vẽ background nhạt để debug vị trí/kích thước (optional)
+            // canvas.drawColor(0x10FF0000)
+            canvas.translate(p.left.toFloat(), p.top.toFloat())
+            layout.draw(canvas)
+        }
+
+        return TextSpec(x, y, w, h, this, renderNode)
     }
 }
 
 /**
- * Kết quả đo của [TextNode]. Giữ [StaticLayout] đã build sẵn;
- * [onDrawContent] chỉ gọi [StaticLayout.draw] — zero allocation.
+ * Kết quả đo của [TextNode]. Giữ [CompatRenderNode] đã record sẵn;
+ * [onDrawContent] chỉ gọi [CompatRenderNode.draw] — cực nhanh và tối ưu memory.
  */
 data class TextSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val contentLeft: Int,
-    val contentTop: Int,
-    val layout: StaticLayout,
-    override val node: TextNode
+    override val node: TextNode,
+    val renderNode: CompatRenderNode
 ) : DrawSpec() {
 
+    override var data: String? = node.text.text
+
+    /** Đã pre-render vào renderNode ở measure → luôn static, coalesce-friendly. */
+    override val isStatic: Boolean = true
+
     override fun onDrawContent(canvas: Canvas) {
-        if (contentLeft != 0 || contentTop != 0) {
-            canvas.translate(contentLeft.toFloat(), contentTop.toFloat())
-        }
-        layout.draw(canvas)
+        renderNode.draw(canvas)
     }
 
     override fun withPosition(newLeft: Int, newTop: Int) =
         copy(left = newLeft, top = newTop)
+
+    /**
+     * Giải phóng display list của renderNode.
+     */
+    override fun onRelease() {
+        Log.d("tuanha", "onRelease: ${node.text.text}  ")
+        renderNode.discardDisplayList()
+    }
 }
