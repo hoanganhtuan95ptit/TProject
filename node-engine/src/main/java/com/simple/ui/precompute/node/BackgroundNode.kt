@@ -133,9 +133,9 @@ open class BackgroundSpec(
     }
 
     override fun onDrawContent(canvas: Canvas) {
-        if (rect.isEmpty || backgroundColor == Color.TRANSPARENT) return
+        if (rect.isEmpty) return
 
-        if (fillPaint.alpha != 0) {
+        if (backgroundColor != Color.TRANSPARENT && fillPaint.alpha != 0) {
             if (radius > 0f) canvas.drawRoundRect(rect, radius, radius, fillPaint)
             else canvas.drawRect(rect, fillPaint)
         }
