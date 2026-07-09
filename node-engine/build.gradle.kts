@@ -5,13 +5,12 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.library)
     `maven-publish`
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.simple.phonetics.ui.precompute"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24
@@ -56,6 +55,6 @@ dependencies {
     
     implementation(libs.glide)
 
-    compileOnly(libs.google.auto.service.annotations)
-    kapt(libs.google.auto.service)
+    implementation(libs.auto.service)
+    ksp(libs.auto.service.ksp)
 }
