@@ -1,5 +1,7 @@
 package com.simple.ui.precompute.image
 
+import com.simple.ui.precompute.image.BigImageTransform
+
 /** Crop ảnh về hình tròn. */
 object CircleCrop : BigImageTransform
 

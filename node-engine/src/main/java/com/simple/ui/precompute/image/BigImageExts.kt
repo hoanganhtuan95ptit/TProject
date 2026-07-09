@@ -1,5 +1,6 @@
 package com.simple.ui.precompute.image
 
+import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import com.bumptech.glide.Glide
 
@@ -8,6 +9,12 @@ fun ImageView.setImage(image: BigImage) {
 
     Glide.with(context)
         .load(image.source)
+        .let {
+            if (image.placeholder != 0) it.placeholder(image.placeholder) else it
+        }
+        .let {
+            if (image.error != 0) it.error(image.error) else it
+        }
         .transform(*image.transforms)
         .into(this)
 }
@@ -20,12 +27,29 @@ private val EMPTY by lazy {
 fun emptyImage() = EMPTY
 
 
+fun Any.toBigImage(): BigImage = BigImage(this)
+
+fun Int.toBigImage(colorFilter: Int = 0): BigImage {
+
+    if (colorFilter == 0) return BigImage(this)
+
+    return this.toBuilder()
+        .addTransform(ColorFilter(colorFilter))
+        .build()
+}
+
+
 fun Int.toBuilder(): BigImageBuilder {
 
     return BigImageBuilder(this)
 }
 
 fun String.toBuilder(): BigImageBuilder {
+
+    return BigImageBuilder(this)
+}
+
+fun Drawable.toBuilder(): BigImageBuilder {
 
     return BigImageBuilder(this)
 }
