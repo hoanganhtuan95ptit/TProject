@@ -40,9 +40,9 @@ afterEvaluate {
     extensions.configure<PublishingExtension> {
         publications {
             register<MavenPublication>("release") {
-                groupId = "com.github.hoanganhtuan95ptit.core"
+                groupId = project.group.toString()
                 artifactId = "node-engine"
-                version = "1.0.0"
+                version = project.version.toString()
 
                 from(components["release"])
             }

@@ -104,8 +104,8 @@ Nếu dùng qua Maven Local, thêm `mavenLocal()` vào repositories của projec
 
 ```kotlin
 dependencies {
-    implementation("com.github.hoanganhtuan95ptit.core:node-engine:1.0.0")
-    implementation("com.github.hoanganhtuan95ptit.core:glide-loader:1.0.0")
+        implementation("com.github.hoanganhtuan95ptit.LayoutNode:node-engine:1.2.1.10")
+    implementation("com.github.hoanganhtuan95ptit.LayoutNode:glide-loader:1.2.1.10")
 }
 ```
 

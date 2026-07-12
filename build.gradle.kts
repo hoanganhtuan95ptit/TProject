@@ -8,8 +8,8 @@ plugins {
 }
 
 subprojects {
-    group = "com.github.hoanganhtuan95ptit.core"
-    version = "1.0.0"
+    group = "com.github.hoanganhtuan95ptit.LayoutNode"
+    version = "1.2.1.10"
 }
 
 tasks.register("publishLibrariesToMavenLocal") {
