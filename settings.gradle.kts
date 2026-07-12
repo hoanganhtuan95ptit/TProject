@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TProject"
+rootProject.name = "LayoutNode"
 include(":app")
 include(":node-engine")
 include(":glide-loader")

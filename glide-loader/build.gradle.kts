@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.simple.phonetics.ui.precompute.glide"
-    compileSdk = 37
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
