@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProgressBarNode — horizontal progress bar tương đương:
@@ -33,39 +34,82 @@ import com.simple.ui.precompute.MeasureContext
  * [cornerRadius] < 0 (mặc định) ⇒ pill (bo tròn nửa chiều cao). Truyền 0f để
  * vẽ vuông, hoặc giá trị px cụ thể.
  */
+interface ProgressBarMeasureNode {
+
+    val progress: Int
+    val max: Int
+    val trackColor: Int
+    val progressColor: Int
+    val cornerRadius: Float
+}
+
 data class ProgressBarNode(
-    val progress: Int,
-    val max: Int = 100,
-    val trackColor: Int = 0xFFE6E5DE.toInt(),
-    val progressColor: Int = 0xFFFFA726.toInt(),
+    override val progress: Int,
+    override val max: Int = 100,
+    override val trackColor: Int = 0xFFE6E5DE.toInt(),
+    override val progressColor: Int = 0xFFFFA726.toInt(),
     /** Bán kính bo góc (px). < 0 ⇒ pill (= height/2). */
-    val cornerRadius: Float = -1f,
+    override val cornerRadius: Float = -1f,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.MatchParent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), ProgressBarMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): ProgressBarSpec =
+        ProgressBarMeasurePolicy<ProgressBarNode>().measure(this, ctx, c, x, y)
+}
+
+open class ProgressBarMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : ProgressBarMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): ProgressBarSpec {
-        val p = padding
-        val w = layoutWidth.resolve(p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(p.vertical, c.maxHeight)
-        return ProgressBarSpec(
+
+        val p = node.padding
+        val w = node.layoutWidth.resolve(p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(p.vertical, c.maxHeight)
+        return createSpec(
+            node = node,
             left = x,
             top = y,
             width = w,
             height = h,
             padding = p,
-            progress = progress,
-            max = max.coerceAtLeast(1),
-            trackColor = trackColor,
-            progressColor = progressColor,
-            cornerRadius = cornerRadius,
-            node = this
+        )
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): ProgressBarSpec {
+
+        return ProgressBarSpec(
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            progress = node.progress,
+            max = node.max.coerceAtLeast(1),
+            trackColor = node.trackColor,
+            progressColor = node.progressColor,
+            cornerRadius = node.cornerRadius,
+            node = node
         )
     }
 }
@@ -74,18 +118,18 @@ data class ProgressBarNode(
  * Kết quả đo của [ProgressBarNode]. Paints + RectF pre-allocate, [onDrawContent]
  * zero-allocation.
  */
-class ProgressBarSpec(
+open class ProgressBarSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     progress: Int,
     max: Int,
     trackColor: Int,
     progressColor: Int,
     cornerRadius: Float,
-    override val node: ProgressBarNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var max: Int = max.coerceAtLeast(1)

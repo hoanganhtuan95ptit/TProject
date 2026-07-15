@@ -187,12 +187,12 @@ abstract class DrawSpec {
  * Used when parent layout rules force a size different from the child's
  * natural measured size.
  */
-internal data class SizedSpec(
+internal open class SizedSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val child: DrawSpec
+    open val child: DrawSpec
 ) : DrawSpec() {
 
     /** Delegate node cho child — SizedSpec chỉ là size adapter, không phải node riêng. */
@@ -204,12 +204,12 @@ internal data class SizedSpec(
     }
 
     override fun withPosition(newLeft: Int, newTop: Int): DrawSpec =
-        copy(left = newLeft, top = newTop)
+        SizedSpec(newLeft, newTop, width, height, child)
 
     override fun withSize(newWidth: Int, newHeight: Int): DrawSpec {
         val w = newWidth.coerceAtLeast(0)
         val h = newHeight.coerceAtLeast(0)
-        return if (width == w && height == h) this else copy(width = w, height = h)
+        return if (width == w && height == h) this else SizedSpec(left, top, w, h, child)
     }
 
     override fun onAttachedToWindow(view: View) {

@@ -7,6 +7,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.View
 import com.simple.ui.precompute.DrawSpec
+import com.simple.ui.precompute.MeasurePolicy
 import com.simple.ui.precompute.loader.ImageLoader
 import com.simple.ui.precompute.MeasureContext
 import com.simple.ui.precompute.image.BigImage
@@ -31,35 +32,67 @@ import kotlin.math.roundToInt
  *   trước khi ảnh về: đặt [layoutWidth]/[layoutHeight] thành [LayoutDimension.Fixed]
  *   hoặc bounded [LayoutDimension.MatchParent].
  */
+interface ImageMeasureNode {
+
+    val source: BigImage
+}
+
 data class ImageNode(
-    val source: BigImage,
+    override val source: BigImage,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
     override val padding: EdgeInsets = EdgeInsets.ZERO
-) : LayoutNode() {
+) : LayoutNode(), ImageMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): ImageSpec =
+        ImageMeasurePolicy<ImageNode>().measure(this, ctx, c, x, y)
+}
+
+open class ImageMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : ImageMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): ImageSpec {
-        val p = padding
 
-        val rawW = layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
-            ?: source.intrinsicWidth()
+        val p = node.padding
+
+        val rawW = node.layoutWidth.contentSizeFrom(c.maxWidth, p.horizontal)
+            ?: node.source.intrinsicWidth()
             ?: 0
-        val rawH = layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
-            ?: source.intrinsicHeight()
+        val rawH = node.layoutHeight.contentSizeFrom(c.maxHeight, p.vertical)
+            ?: node.source.intrinsicHeight()
             ?: 0
 
-        val w = layoutWidth.resolve(rawW + p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(rawH + p.vertical, c.maxHeight)
+        val w = node.layoutWidth.resolve(rawW + p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(rawH + p.vertical, c.maxHeight)
         val dstW = (w - p.horizontal).coerceAtLeast(0)
         val dstH = (h - p.vertical).coerceAtLeast(0)
 
         val dst = Rect(p.left, p.top, p.left + dstW, p.top + dstH)
-        return ImageSpec(x, y, w, h, source, dst, this)
+        return createSpec(node, x, y, w, h, dst)
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        dst: Rect
+    ): ImageSpec {
+
+        return ImageSpec(left, top, width, height, node.source, dst, node)
     }
 
     private fun LayoutDimension.contentSizeFrom(parentMax: Int, padding: Int): Int? =
@@ -85,14 +118,14 @@ data class ImageNode(
  * Threading: setter của [drawable] luôn được gọi trên main (Glide CustomTarget
  * callbacks + onAttach), [onDrawContent] cũng ở main → không cần @Volatile.
  */
-class ImageSpec(
+open class ImageSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val source: BigImage,
-    val dst: Rect,
-    override val node: ImageNode
+    open val source: BigImage,
+    open val dst: Rect,
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var drawable: Drawable? = null

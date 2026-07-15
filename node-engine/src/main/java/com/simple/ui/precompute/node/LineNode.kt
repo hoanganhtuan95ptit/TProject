@@ -6,6 +6,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 import kotlin.math.ceil
 
 /**
@@ -14,62 +15,105 @@ import kotlin.math.ceil
  * Use [dashWidth] + [dashGap] for dashed separators. All sizes are resolved in
  * pixels before constructing the node; the engine does not touch resources.
  */
+interface LineMeasureNode {
+
+    val color: Int
+    val strokeWidth: Float
+    val orientation: Orientation
+    val dashWidth: Float
+    val dashGap: Float
+    val strokeCap: Paint.Cap
+}
+
 data class LineNode(
-    val color: Int = Color.BLACK,
-    val strokeWidth: Float = 1f,
-    val orientation: Orientation = Orientation.HORIZONTAL,
-    val dashWidth: Float = 0f,
-    val dashGap: Float = 0f,
-    val strokeCap: Paint.Cap = Paint.Cap.ROUND,
+    override val color: Int = Color.BLACK,
+    override val strokeWidth: Float = 1f,
+    override val orientation: Orientation = Orientation.HORIZONTAL,
+    override val dashWidth: Float = 0f,
+    override val dashGap: Float = 0f,
+    override val strokeCap: Paint.Cap = Paint.Cap.ROUND,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.MatchParent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), LineMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): LineSpec =
+        LineMeasurePolicy<LineNode>().measure(this, ctx, c, x, y)
+}
+
+open class LineMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : LineMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): LineSpec {
 
-        val p = padding
-        val thickness = ceil(strokeWidth.coerceAtLeast(0f).toDouble()).toInt()
-        val contentW = if (orientation == Orientation.HORIZONTAL) 0 else thickness
-        val contentH = if (orientation == Orientation.HORIZONTAL) thickness else 0
-        val w = layoutWidth.resolve(contentW + p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(contentH + p.vertical, c.maxHeight)
+        val p = node.padding
+        val thickness = ceil(node.strokeWidth.coerceAtLeast(0f).toDouble()).toInt()
+        val contentW = if (node.orientation == Orientation.HORIZONTAL) 0 else thickness
+        val contentH = if (node.orientation == Orientation.HORIZONTAL) thickness else 0
+        val w = node.layoutWidth.resolve(contentW + p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(contentH + p.vertical, c.maxHeight)
 
-        return LineSpec(
+        return createSpec(
+            node = node,
             left = x,
             top = y,
             width = w,
             height = h,
             padding = p,
-            color = color,
-            strokeWidth = strokeWidth,
-            orientation = orientation,
-            dashWidth = dashWidth,
-            dashGap = dashGap,
-            strokeCap = strokeCap,
-            node = this
+        )
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): LineSpec {
+
+        return LineSpec(
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            color = node.color,
+            strokeWidth = node.strokeWidth,
+            orientation = node.orientation,
+            dashWidth = node.dashWidth,
+            dashGap = node.dashGap,
+            strokeCap = node.strokeCap,
+            node = node
         )
     }
 }
 
-class LineSpec(
+open class LineSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     color: Int,
     strokeWidth: Float,
-    val orientation: Orientation,
+    open val orientation: Orientation,
     dashWidth: Float,
     dashGap: Float,
     strokeCap: Paint.Cap,
-    override val node: LineNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var color: Int = color

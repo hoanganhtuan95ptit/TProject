@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 import kotlin.math.min
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,53 +30,102 @@ import kotlin.math.min
  * Mặc định [layoutWidth] / [layoutHeight] = [LayoutDimension.MatchParent] để
  * node chiếm hết slot; thường overlay cùng [GaugeArcNode] trong một stack/frame.
  */
+interface GaugeScoreMeasureNode {
+
+    val progress: Int
+    val label: String
+    val grade: String
+    val labelColor: Int
+    val scoreColor: Int
+    val percentColor: Int
+    val gradeColor: Int
+    val typeface: Typeface?
+    val scoreTextScale: Float
+    val percentTextScale: Float
+    val labelTextScale: Float
+}
+
 data class GaugeScoreNode(
-    val progress: Int,
-    val label: String = "",
-    val grade: String = "",
-    val labelColor: Int = 0xFF6F6E69.toInt(),
-    val scoreColor: Int = 0xFF111111.toInt(),
-    val percentColor: Int = 0xFF111111.toInt(),
-    val gradeColor: Int = 0xFF1ED760.toInt(),
-    val typeface: Typeface? = null,
+    override val progress: Int,
+    override val label: String = "",
+    override val grade: String = "",
+    override val labelColor: Int = 0xFF6F6E69.toInt(),
+    override val scoreColor: Int = 0xFF111111.toInt(),
+    override val percentColor: Int = 0xFF111111.toInt(),
+    override val gradeColor: Int = 0xFF1ED760.toInt(),
+    override val typeface: Typeface? = null,
     /** Tỷ lệ kích thước số điểm so với cạnh ngắn của bounds. */
-    val scoreTextScale: Float = 0.28f,
+    override val scoreTextScale: Float = 0.28f,
     /** Tỷ lệ kích thước ký tự "%". */
-    val percentTextScale: Float = 0.14f,
+    override val percentTextScale: Float = 0.14f,
     /** Tỷ lệ kích thước label / grade. */
-    val labelTextScale: Float = 0.10f,
+    override val labelTextScale: Float = 0.10f,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.MatchParent,
     override val layoutHeight: LayoutDimension = LayoutDimension.MatchParent
-) : LayoutNode() {
+) : LayoutNode(), GaugeScoreMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): GaugeScoreSpec =
+        GaugeScoreMeasurePolicy<GaugeScoreNode>().measure(this, ctx, c, x, y)
+}
+
+open class GaugeScoreMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : GaugeScoreMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): GaugeScoreSpec {
-        val p = padding
-        val w = layoutWidth.resolve(p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(p.vertical, c.maxHeight)
-        return GaugeScoreSpec(
+
+        val p = node.padding
+        val w = node.layoutWidth.resolve(p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(p.vertical, c.maxHeight)
+        return createSpec(
+            node = node,
             left = x,
             top = y,
             width = w,
             height = h,
             padding = p,
-            progress = progress.coerceIn(0, 100),
-            label = label,
-            grade = grade,
-            labelColor = labelColor,
-            scoreColor = scoreColor,
-            percentColor = percentColor,
-            gradeColor = gradeColor,
-            typeface = typeface,
-            scoreTextScale = scoreTextScale,
-            percentTextScale = percentTextScale,
-            labelTextScale = labelTextScale,
-            node = this
+        )
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): GaugeScoreSpec {
+
+        return GaugeScoreSpec(
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            progress = node.progress.coerceIn(0, 100),
+            label = node.label,
+            grade = node.grade,
+            labelColor = node.labelColor,
+            scoreColor = node.scoreColor,
+            percentColor = node.percentColor,
+            gradeColor = node.gradeColor,
+            typeface = node.typeface,
+            scoreTextScale = node.scoreTextScale,
+            percentTextScale = node.percentTextScale,
+            labelTextScale = node.labelTextScale,
+            node = node
         )
     }
 }
@@ -84,12 +134,12 @@ data class GaugeScoreNode(
  * Kết quả đo của [GaugeScoreNode]. Paints + textSize đã setup trong init,
  * [onDrawContent] chỉ làm float math — zero allocation.
  */
-class GaugeScoreSpec(
+open class GaugeScoreSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     progress: Int,
     label: String,
     grade: String,
@@ -97,11 +147,11 @@ class GaugeScoreSpec(
     scoreColor: Int,
     percentColor: Int,
     gradeColor: Int,
-    private val typeface: Typeface?,
+    open val typeface: Typeface?,
     val scoreTextScale: Float,
     val percentTextScale: Float,
     val labelTextScale: Float,
-    override val node: GaugeScoreNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var progress: Int = progress.coerceIn(0, 100)

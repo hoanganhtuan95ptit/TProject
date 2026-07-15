@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 import kotlin.math.min
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,36 +24,78 @@ import kotlin.math.min
  * Mặc định [layoutWidth] / [layoutHeight] = [LayoutDimension.MatchParent] để node
  * chiếm hết slot được cấp; thường dùng cùng [GaugeScoreNode] trong một stack/frame.
  */
+interface GaugeArcMeasureNode {
+
+    val progress: Int
+    val trackColor: Int
+    val progressColor: Int
+    val strokeWidthPx: Float
+}
+
 data class GaugeArcNode(
-    val progress: Int,
-    val trackColor: Int = 0xFFE6E5DE.toInt(),
-    val progressColor: Int = 0xFF1ED760.toInt(),
-    val strokeWidthPx: Float,
+    override val progress: Int,
+    override val trackColor: Int = 0xFFE6E5DE.toInt(),
+    override val progressColor: Int = 0xFF1ED760.toInt(),
+    override val strokeWidthPx: Float,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.MatchParent,
     override val layoutHeight: LayoutDimension = LayoutDimension.MatchParent
-) : LayoutNode() {
+) : LayoutNode(), GaugeArcMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): GaugeArcSpec =
+        GaugeArcMeasurePolicy<GaugeArcNode>().measure(this, ctx, c, x, y)
+}
+
+open class GaugeArcMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : GaugeArcMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): GaugeArcSpec {
-        val p = padding
-        val w = layoutWidth.resolve(p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(p.vertical, c.maxHeight)
-        return GaugeArcSpec(
+
+        val p = node.padding
+        val w = node.layoutWidth.resolve(p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(p.vertical, c.maxHeight)
+        return createSpec(
+            node = node,
             left = x,
             top = y,
             width = w,
             height = h,
             padding = p,
-            progress = progress.coerceIn(0, 100),
-            trackColor = trackColor,
-            progressColor = progressColor,
-            strokeWidthPx = strokeWidthPx.coerceAtLeast(0f),
-            node = this
+        )
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): GaugeArcSpec {
+
+        return GaugeArcSpec(
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            progress = node.progress.coerceIn(0, 100),
+            trackColor = node.trackColor,
+            progressColor = node.progressColor,
+            strokeWidthPx = node.strokeWidthPx.coerceAtLeast(0f),
+            node = node
         )
     }
 }
@@ -61,17 +104,17 @@ data class GaugeArcNode(
  * Kết quả đo của [GaugeArcNode]. Paints + [ringRect] đã pre-allocate trong
  * init, [onDrawContent] zero-allocation.
  */
-class GaugeArcSpec(
+open class GaugeArcSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     progress: Int,
     trackColor: Int,
     progressColor: Int,
     strokeWidthPx: Float,
-    override val node: GaugeArcNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var progress: Int = progress.coerceIn(0, 100)

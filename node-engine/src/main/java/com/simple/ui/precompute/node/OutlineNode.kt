@@ -13,6 +13,7 @@ import android.view.View
 import android.view.animation.LinearInterpolator
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 
 enum class OutlineState { IDLE, LOADING, HIDDEN }
 
@@ -32,59 +33,99 @@ data class Outline(
  * Draws a rounded outline effect in its measured bounds, including dashed strokes
  * and the loading segment behavior from the legacy OutlineDelegate.
  */
+interface OutlineMeasureNode {
+
+    val backgroundColor: Int
+    val strokeColor: Int
+    val strokeWidth: Float
+    val cornerRadius: Float
+    val dashWidth: Float
+    val dashGap: Float
+    val loadingSegmentRatio: Float
+    val loadingDurationMs: Long
+    val state: OutlineState
+}
+
 data class OutlineNode(
-    val backgroundColor: Int = Color.TRANSPARENT,
-    val strokeColor: Int = Color.BLACK,
-    val strokeWidth: Float = 1f,
-    val cornerRadius: Float = 0f,
-    val dashWidth: Float = 0f,
-    val dashGap: Float = 0f,
-    val loadingSegmentRatio: Float = 0.5f,
-    val loadingDurationMs: Long = 1200L,
-    val state: OutlineState = OutlineState.IDLE,
+    override val backgroundColor: Int = Color.TRANSPARENT,
+    override val strokeColor: Int = Color.BLACK,
+    override val strokeWidth: Float = 1f,
+    override val cornerRadius: Float = 0f,
+    override val dashWidth: Float = 0f,
+    override val dashGap: Float = 0f,
+    override val loadingSegmentRatio: Float = 0.5f,
+    override val loadingDurationMs: Long = 1200L,
+    override val state: OutlineState = OutlineState.IDLE,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), OutlineMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): OutlineSpec =
+        OutlineMeasurePolicy<OutlineNode>().measure(this, ctx, c, x, y)
+}
+
+open class OutlineMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : OutlineMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): OutlineSpec {
-        val p = padding
+
+        val p = node.padding
         val naturalW = p.horizontal
         val naturalH = p.vertical
-        val w = layoutWidth.resolve(naturalW, c.maxWidth)
-        val h = layoutHeight.resolve(naturalH, c.maxHeight)
+        val w = node.layoutWidth.resolve(naturalW, c.maxWidth)
+        val h = node.layoutHeight.resolve(naturalH, c.maxHeight)
+
+        return createSpec(node, x, y, w, h, p)
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): OutlineSpec {
 
         return OutlineSpec(
-            left = x,
-            top = y,
-            width = w,
-            height = h,
-            padding = p,
-            backgroundColor = backgroundColor,
-            strokeColor = strokeColor,
-            strokeWidth = strokeWidth,
-            cornerRadius = cornerRadius,
-            dashWidth = dashWidth,
-            dashGap = dashGap,
-            loadingSegmentRatio = loadingSegmentRatio,
-            loadingDurationMs = loadingDurationMs,
-            state = state,
-            node = this
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            backgroundColor = node.backgroundColor,
+            strokeColor = node.strokeColor,
+            strokeWidth = node.strokeWidth,
+            cornerRadius = node.cornerRadius,
+            dashWidth = node.dashWidth,
+            dashGap = node.dashGap,
+            loadingSegmentRatio = node.loadingSegmentRatio,
+            loadingDurationMs = node.loadingDurationMs,
+            state = node.state,
+            node = node
         )
     }
 }
 
-class OutlineSpec(
+open class OutlineSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     backgroundColor: Int,
     strokeColor: Int,
     strokeWidth: Float,
@@ -94,7 +135,7 @@ class OutlineSpec(
     loadingSegmentRatio: Float,
     loadingDurationMs: Long,
     state: OutlineState,
-    override val node: OutlineNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var backgroundColor: Int = backgroundColor

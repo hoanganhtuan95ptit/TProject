@@ -15,11 +15,30 @@ import com.simple.ui.precompute.MeasureContext
 import com.simple.ui.precompute.text.BigText
 import kotlin.math.ceil
 import androidx.core.graphics.withSave
+import com.simple.ui.precompute.MeasurePolicy
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextNode — mô tả một đoạn text cần đo/vẽ.
 // TextSpec  — kết quả sau khi đo: giữ Picture đã record sẵn, vẽ 0-alloc.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Contract dữ liệu cho policy đo text.
+ *
+ * Node custom chỉ cần implement interface này để tái sử dụng
+ * [TextMeasurePolicy] mà không phải kế thừa/copy [TextNode].
+ */
+interface TextMeasureNode {
+
+    val text: BigText
+    val textSizePx: Float
+    val color: Int
+    val maxLines: Int
+    val typeface: Typeface?
+    val lineSpacingMul: Float
+    val lineSpacingAdd: Float
+    val textPaintDensity: Float
+}
 
 /**
  * Mô tả một đoạn text cần layout.
@@ -28,42 +47,57 @@ import androidx.core.graphics.withSave
  * typeface đã load) — engine không được đụng Context.
  */
 data class TextNode(
-    val text: BigText,
-    val textSizePx: Float = 1f,
-    val color: Int = Color.TRANSPARENT,
-    val maxLines: Int = Int.MAX_VALUE,
-    val typeface: Typeface? = null,
-    val lineSpacingMul: Float = 1f,
-    val lineSpacingAdd: Float = 0f,
+    override val text: BigText,
+    override val textSizePx: Float = 1f,
+    override val color: Int = Color.TRANSPARENT,
+    override val maxLines: Int = Int.MAX_VALUE,
+    override val typeface: Typeface? = null,
+    override val lineSpacingMul: Float = 1f,
+    override val lineSpacingAdd: Float = 0f,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent,
-    val textPaintDensity: Float = Resources.getSystem().displayMetrics.density
-) : LayoutNode() {
+    override val textPaintDensity: Float = Resources.getSystem().displayMetrics.density
+) : LayoutNode(), TextMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): TextSpec =
+        TextMeasurePolicy<TextNode>().measure(this, ctx, c, x, y)
+}
+
+open class TextMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : TextMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): TextSpec {
-        val p = padding
-        val measureWidth = layoutWidth.maxForMeasure(c.maxWidth)
+
+        val p = node.padding
+        val measureWidth = node.layoutWidth.maxForMeasure(c.maxWidth)
         val innerWidth = (measureWidth - p.horizontal).coerceAtLeast(0)
-        val textChar = text.textChar
+        val textChar = node.text.textChar
 
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = textSizePx
-            density = textPaintDensity
-            color = this@TextNode.color
-            this@TextNode.typeface?.let { typeface = it }
+            textSize = node.textSizePx
+            density = node.textPaintDensity
+            color = node.color
+            node.typeface?.let { typeface = it }
         }
 
         val layout = StaticLayout.Builder
             .obtain(textChar, 0, textChar.length, paint, innerWidth)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(lineSpacingAdd, lineSpacingMul)
-            .setMaxLines(maxLines)
+            .setLineSpacing(node.lineSpacingAdd, node.lineSpacingMul)
+            .setMaxLines(node.maxLines)
             .setEllipsize(TextUtils.TruncateAt.END)
             .setIncludePad(false)
             .build()
@@ -75,13 +109,38 @@ data class TextNode(
 
         val contentW = usedWidth.coerceAtMost(innerWidth) + p.horizontal
         val contentH = layout.height + p.vertical
-        val w = layoutWidth.resolve(contentW, c.maxWidth)
-        val h = layoutHeight.resolve(contentH, c.maxHeight)
+        val w = node.layoutWidth.resolve(contentW, c.maxWidth)
+        val h = node.layoutHeight.resolve(contentH, c.maxHeight)
         val picture = recordTextPicture(layout, p.left, p.top, w, h)
-        return TextSpec(x, y, w, h, picture, this)
+        return createSpec(
+            left = x,
+            top = y,
+            width = w,
+            height = h,
+            picture = picture,
+            layout = layout,
+            contentLeft = p.left,
+            contentTop = p.top,
+            node = node
+        )
     }
 
-    private fun recordTextPicture(
+    protected open fun createSpec(
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        picture: Picture,
+        layout: StaticLayout,
+        contentLeft: Int,
+        contentTop: Int,
+        node: N
+    ): TextSpec {
+
+        return TextSpec(left, top, width, height, picture, node)
+    }
+
+    protected open fun recordTextPicture(
         layout: StaticLayout,
         contentLeft: Int,
         contentTop: Int,
@@ -105,19 +164,19 @@ data class TextNode(
  * Kết quả đo của [TextNode]. [StaticLayout] chỉ dùng trong lúc đo/record;
  * [onDrawContent] replay [Picture] đã có sẵn — zero allocation.
  */
-data class TextSpec(
+open class TextSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val picture: Picture,
-    override val node: TextNode
+    open val picture: Picture,
+    override val node: LayoutNode
 ) : DrawSpec() {
 
-    override fun onDrawContent(canvas: Canvas) {
+    override open fun onDrawContent(canvas: Canvas) {
         picture.draw(canvas)
     }
 
     override fun withPosition(newLeft: Int, newTop: Int) =
-        copy(left = newLeft, top = newTop)
+        TextSpec(newLeft, newTop, width, height, picture, node)
 }

@@ -2,6 +2,7 @@ package com.simple.ui.precompute.node
 
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 import kotlin.math.roundToInt
 
 /**
@@ -89,20 +90,33 @@ data class FlexChild(
  * - alignContent
  * - order, flexGrow, flexShrink, flexBasisPercent, wrapBefore
  */
+interface FlexboxMeasureNode {
+
+    val children: List<FlexChild>
+    val flexDirection: FlexDirection
+    val flexWrap: FlexWrap
+    val justifyContent: FlexJustifyContent
+    val alignItems: FlexAlignItems
+    val alignContent: FlexAlignContent
+    val gap: Int
+    val mainGap: Int
+    val crossGap: Int
+}
+
 data class FlexboxNode(
-    val children: List<FlexChild>,
-    val flexDirection: FlexDirection = FlexDirection.ROW,
-    val flexWrap: FlexWrap = FlexWrap.NOWRAP,
-    val justifyContent: FlexJustifyContent = FlexJustifyContent.FLEX_START,
-    val alignItems: FlexAlignItems = FlexAlignItems.STRETCH,
-    val alignContent: FlexAlignContent = FlexAlignContent.STRETCH,
-    val gap: Int = 0,
-    val mainGap: Int = gap,
-    val crossGap: Int = gap,
+    override val children: List<FlexChild>,
+    override val flexDirection: FlexDirection = FlexDirection.ROW,
+    override val flexWrap: FlexWrap = FlexWrap.NOWRAP,
+    override val justifyContent: FlexJustifyContent = FlexJustifyContent.FLEX_START,
+    override val alignItems: FlexAlignItems = FlexAlignItems.STRETCH,
+    override val alignContent: FlexAlignContent = FlexAlignContent.STRETCH,
+    override val gap: Int = 0,
+    override val mainGap: Int = gap,
+    override val crossGap: Int = gap,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), FlexboxMeasureNode {
 
     init {
         require(gap >= 0) { "gap must be >= 0, was $gap" }
@@ -110,7 +124,58 @@ data class FlexboxNode(
         require(crossGap >= 0) { "crossGap must be >= 0, was $crossGap" }
     }
 
-    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec {
+    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec =
+        FlexboxMeasurePolicy<FlexboxNode>().measure(this, ctx, c, x, y)
+}
+
+open class FlexboxMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : FlexboxMeasureNode {
+
+    private lateinit var activeNode: N
+
+    private val children: List<FlexChild>
+        get() = activeNode.children
+
+    private val flexDirection: FlexDirection
+        get() = activeNode.flexDirection
+
+    private val flexWrap: FlexWrap
+        get() = activeNode.flexWrap
+
+    private val justifyContent: FlexJustifyContent
+        get() = activeNode.justifyContent
+
+    private val alignItems: FlexAlignItems
+        get() = activeNode.alignItems
+
+    private val alignContent: FlexAlignContent
+        get() = activeNode.alignContent
+
+    private val mainGap: Int
+        get() = activeNode.mainGap
+
+    private val crossGap: Int
+        get() = activeNode.crossGap
+
+    private val padding: EdgeInsets
+        get() = activeNode.padding
+
+    private val layoutWidth: LayoutDimension
+        get() = activeNode.layoutWidth
+
+    private val layoutHeight: LayoutDimension
+        get() = activeNode.layoutHeight
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
+    ): GroupSpec {
+
+        activeNode = node
         val p = padding
         val measureMaxW = layoutWidth.maxForMeasure(c.maxWidth)
         val measureMaxH = layoutHeight.maxForMeasure(c.maxHeight)
@@ -153,7 +218,19 @@ data class FlexboxNode(
             isRow = isRow
         )
 
-        return GroupSpec(x, y, width, height, placed, this)
+        return createSpec(node, x, y, width, height, placed)
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        children: List<DrawSpec>
+    ): GroupSpec {
+
+        return GroupSpec(left, top, width, height, children, node)
     }
 
     private fun measureLines(

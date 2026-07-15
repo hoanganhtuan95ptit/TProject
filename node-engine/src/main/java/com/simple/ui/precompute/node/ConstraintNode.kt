@@ -2,6 +2,7 @@ package com.simple.ui.precompute.node
 
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConstraintChild — mô tả 1 child với các constraint liên kết.
@@ -95,17 +96,49 @@ data class ConstraintChild(
  * )
  * ```
  */
+interface ConstraintMeasureNode {
+
+    val children: List<ConstraintChild>
+}
+
 data class ConstraintNode(
-    val children: List<ConstraintChild>,
+    override val children: List<ConstraintChild>,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), ConstraintMeasureNode {
 
     companion object {
 
         /** ID reserved trỏ đến container — dùng làm target trong constraint. */
         const val PARENT = "parent"
+    }
+
+    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec =
+        ConstraintMeasurePolicy<ConstraintNode>().measure(this, ctx, c, x, y)
+}
+
+open class ConstraintMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : ConstraintMeasureNode {
+
+    private lateinit var activeNode: N
+
+    private val children: List<ConstraintChild>
+        get() = activeNode.children
+
+    private val padding: EdgeInsets
+        get() = activeNode.padding
+
+    private val layoutWidth: LayoutDimension
+        get() = activeNode.layoutWidth
+
+    private val layoutHeight: LayoutDimension
+        get() = activeNode.layoutHeight
+
+    private companion object {
+
+        const val PARENT = ConstraintNode.PARENT
     }
 
     private data class ConstraintMeasureState(
@@ -120,8 +153,15 @@ data class ConstraintNode(
         val height: Int
     )
 
-    override fun measure(ctx: MeasureContext, c: Constraints, x: Int, y: Int): GroupSpec {
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
+    ): GroupSpec {
 
+        activeNode = node
         val p = padding
         val measureMaxW = layoutWidth.maxForMeasure(c.maxWidth)
         val measureMaxH = layoutHeight.maxForMeasure(c.maxHeight)
@@ -143,7 +183,19 @@ data class ConstraintNode(
         val naturalH = naturalHeight(state.bounds, p)
         val totalW = layoutWidth.resolve(naturalW.coerceAtLeast(p.horizontal), c.maxWidth)
         val totalH = layoutHeight.resolve(naturalH.coerceAtLeast(p.vertical), c.maxHeight)
-        return GroupSpec(x, y, totalW, totalH, placed, this)
+        return createSpec(node, x, y, totalW, totalH, placed)
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        children: List<DrawSpec>
+    ): GroupSpec {
+
+        return GroupSpec(left, top, width, height, children, node)
     }
 
     private fun createMeasureState(innerW: Int, innerH: Int): ConstraintMeasureState {

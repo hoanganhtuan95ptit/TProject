@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import com.simple.ui.precompute.DrawSpec
 import com.simple.ui.precompute.MeasureContext
+import com.simple.ui.precompute.MeasurePolicy
 
 data class BackgroundData(
     val backgroundColor: Int = Color.TRANSPARENT,
@@ -17,58 +18,94 @@ data class BackgroundData(
     val dashGap: Float = 0f
 )
 
+interface BackgroundMeasureNode {
+
+    val backgroundColor: Int
+    val strokeColor: Int
+    val strokeWidth: Float
+    val cornerRadius: Float
+    val dashWidth: Float
+    val dashGap: Float
+}
+
 data class BackgroundNode(
-    val backgroundColor: Int = Color.TRANSPARENT,
-    val strokeColor: Int = Color.BLACK,
-    val strokeWidth: Float = 1f,
-    val cornerRadius: Float = 0f,
-    val dashWidth: Float = 0f,
-    val dashGap: Float = 0f,
+    override val backgroundColor: Int = Color.TRANSPARENT,
+    override val strokeColor: Int = Color.BLACK,
+    override val strokeWidth: Float = 1f,
+    override val cornerRadius: Float = 0f,
+    override val dashWidth: Float = 0f,
+    override val dashGap: Float = 0f,
     override val padding: EdgeInsets = EdgeInsets.ZERO,
     override val layoutWidth: LayoutDimension = LayoutDimension.WrapContent,
     override val layoutHeight: LayoutDimension = LayoutDimension.WrapContent
-) : LayoutNode() {
+) : LayoutNode(), BackgroundMeasureNode {
 
     override fun measure(
         ctx: MeasureContext,
         c: Constraints,
         x: Int,
         y: Int
+    ): BackgroundSpec =
+        BackgroundMeasurePolicy<BackgroundNode>().measure(this, ctx, c, x, y)
+}
+
+open class BackgroundMeasurePolicy<N> : MeasurePolicy<N>()
+        where N : LayoutNode,
+              N : BackgroundMeasureNode {
+
+    override fun measure(
+        node: N,
+        ctx: MeasureContext,
+        c: Constraints,
+        x: Int,
+        y: Int
     ): BackgroundSpec {
-        val p = padding
-        val w = layoutWidth.resolve(p.horizontal, c.maxWidth)
-        val h = layoutHeight.resolve(p.vertical, c.maxHeight)
+
+        val p = node.padding
+        val w = node.layoutWidth.resolve(p.horizontal, c.maxWidth)
+        val h = node.layoutHeight.resolve(p.vertical, c.maxHeight)
+        return createSpec(node, x, y, w, h, p)
+    }
+
+    protected open fun createSpec(
+        node: N,
+        left: Int,
+        top: Int,
+        width: Int,
+        height: Int,
+        padding: EdgeInsets
+    ): BackgroundSpec {
 
         return BackgroundSpec(
-            left = x,
-            top = y,
-            width = w,
-            height = h,
-            padding = p,
-            backgroundColor = backgroundColor,
-            strokeColor = strokeColor,
-            strokeWidth = strokeWidth,
-            cornerRadius = cornerRadius,
-            dashWidth = dashWidth,
-            dashGap = dashGap,
-            node = this
+            left = left,
+            top = top,
+            width = width,
+            height = height,
+            padding = padding,
+            backgroundColor = node.backgroundColor,
+            strokeColor = node.strokeColor,
+            strokeWidth = node.strokeWidth,
+            cornerRadius = node.cornerRadius,
+            dashWidth = node.dashWidth,
+            dashGap = node.dashGap,
+            node = node
         )
     }
 }
 
-class BackgroundSpec(
+open class BackgroundSpec(
     override val left: Int,
     override val top: Int,
     override val width: Int,
     override val height: Int,
-    val padding: EdgeInsets,
+    open val padding: EdgeInsets,
     backgroundColor: Int,
     strokeColor: Int,
     strokeWidth: Float,
     cornerRadius: Float,
     dashWidth: Float,
     dashGap: Float,
-    override val node: BackgroundNode
+    override val node: LayoutNode
 ) : DrawSpec() {
 
     var backgroundColor: Int = backgroundColor
