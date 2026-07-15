@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * measure đệ quy vào một node có [LayoutNode.id]:
  * - Lookup trong cache. Nếu hit + spec cũ là cùng ref (`===`) với node
  *   mới + kích thước còn valid dưới constraint mới → **trả nguyên spec
- *   cũ, bỏ qua `node.measure()`** (tiết kiệm StaticLayout build, constraint
+ *   cũ, bỏ qua `node.measure()`** (tiết kiệm text Picture record, constraint
  *   solver, image intrinsic math...).
  * - Miss (không có id, id không khớp, ref khác, hoặc constraint đổi) →
  *   chạy `node.measure()` như thường và ghi kết quả vào cache dưới id
@@ -40,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap
  * ## Lifecycle
  *
  * Caller chủ động [evict] khi view/màn hình bị huỷ hẳn để tránh giữ
- * [DrawSpec] cùng StaticLayout / Drawable / Bitmap quá lâu. [clearCache]
+ * [DrawSpec] cùng Picture / Drawable / Bitmap quá lâu. [clearCache]
  * dùng cho config change (theme/density) hoặc low-memory.
  *
  * ## Thread-safety

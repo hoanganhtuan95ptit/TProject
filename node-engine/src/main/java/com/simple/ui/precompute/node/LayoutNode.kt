@@ -117,7 +117,7 @@ abstract class LayoutNode {
      * Contract (do caller giữ):
      * - Cùng một logical unit qua các lần rebuild tree phải có cùng [id].
      * - Nếu node vẫn là **cùng instance** (`===`) so với lần trước, cache hit
-     *   → bỏ qua `node.measure()`, tận dụng nguyên spec cũ (giữ StaticLayout,
+     *   → bỏ qua `node.measure()`, tận dụng nguyên spec cũ (giữ Picture,
      *   Rect, drawable, animator state...). Đây là fast-path chính.
      * - Nếu node là instance mới (dù nội dung không đổi), cache miss → đo lại.
      *   Muốn tránh, hãy giữ ref subtree không thay đổi (kiểu memo/immutable).

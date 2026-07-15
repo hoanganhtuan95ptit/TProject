@@ -72,7 +72,7 @@ Trên Android stock, `View.onMeasure()` chạy ở **UI thread**, bao gồm cả
 | Tầng | Trách nhiệm | Thread |
 |------|-------------|--------|
 | `LayoutNode` | Mô tả cây layout — thuần data, immutable | bất kỳ |
-| `LayoutEngine.measure()` | Đo kích thước, gán vị trí, build `StaticLayout` / `Rect` | background |
+| `LayoutEngine.measure()` | Đo kích thước, gán vị trí, record text `Picture` / `Rect` | background |
 | `DrawSpec` (đa hình) | Giữ kết quả + tự biết `draw(canvas)` | hand-off |
 | `PrecomputedView` | Báo size + uỷ thác vẽ cho spec | UI |
 

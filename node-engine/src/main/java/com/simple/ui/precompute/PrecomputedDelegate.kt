@@ -13,7 +13,7 @@ class PrecomputedDelegate(private val view: View, context: Context, attrs: Attri
     var spec: DrawSpec? = null
         set(value) {
             // Identity swap thuần: mọi tối ưu tái sử dụng subtree (skip measure,
-            // giữ drawable / animator / StaticLayout...) đã được xử lý ở
+            // giữ drawable / animator / Picture...) đã được xử lý ở
             // background qua cache-by-id trong [LayoutEngine] + [MeasureContext].
             // Main thread ở đây chỉ làm swap + attach/detach — không diff cây.
             //
