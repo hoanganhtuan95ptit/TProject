@@ -7,13 +7,13 @@ import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
-import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.CharacterStyle
-import android.text.style.LineBackgroundSpan
-import android.text.style.MetricAffectingSpan
+import android.text.style.ReplacementSpan
 import androidx.annotation.Keep
 import com.google.auto.service.AutoService
+import kotlin.math.ceil
+import kotlin.math.floor
 
 data class BigRoundedOutline(
     val textSize: Float,
@@ -21,6 +21,7 @@ data class BigRoundedOutline(
     val paddingVertical: Float = 0f,
     val marginHorizontal: Float = 0f,
     val marginVertical: Float = 0f,
+    val textColor: Int? = null,
     val strokeColor: Int,
     val strokeWidth: Float = 1f,
     val cornerRadius: Float = 0f,
@@ -39,159 +40,165 @@ class BigRoundedOutlineConvert : BigImageSpanConvert {
 
 private class RoundedOutlineAndroidSpan(
     private val span: BigRoundedOutline
-) : MetricAffectingSpan(), LineBackgroundSpan {
+) : ReplacementSpan() {
 
     private val rect = RectF()
 
-    private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    override fun updateMeasureState(paint: TextPaint) {
-        applyVerticalSpacing(paint)
-    }
-
-    override fun updateDrawState(tp: TextPaint) = Unit
-
-    private fun applyVerticalSpacing(paint: TextPaint) {
-
-        val fontMetrics = Paint.FontMetrics()
-
-        TextPaint(paint).apply {
-            textSize = span.textSize
-        }.getFontMetrics(fontMetrics)
-
-        val originalHeight = fontMetrics.descent - fontMetrics.ascent
-
-        val targetHeight = originalHeight +
-                (span.paddingVertical * 2) +
-                (span.marginVertical * 2)
-
-        paint.textSize = span.textSize * (targetHeight / originalHeight)
-    }
-
-    override fun drawBackground(
-        canvas: Canvas,
+    override fun getSize(
         paint: Paint,
-        left: Int,
-        right: Int,
-        top: Int,
-        baseline: Int,
-        bottom: Int,
-        text: CharSequence,
+        text: CharSequence?,
         start: Int,
         end: Int,
-        lineNumber: Int
+        fm: Paint.FontMetricsInt?
+    ): Int {
+
+        val measurePaint = createTextPaint(paint)
+        val width = measureText(
+            paint = measurePaint,
+            text,
+            start,
+            end
+        ) + getHorizontalInsets()
+
+        updateFontMetrics(measurePaint, fm)
+
+        return ceil(width.toDouble()).toInt()
+    }
+
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        y: Int,
+        bottom: Int,
+        paint: Paint
     ) {
 
-        val spanned = text as? Spanned ?: return
-
-        val range = resolveLineSpanRange(
-            spanned = spanned,
-            lineStart = start,
-            lineEnd = end
-        ) ?: return
-
-        val measurePaint = createMeasurePaint(paint)
-
-        val rect = buildOutlineRect(
-            measurePaint = measurePaint,
-            left = left,
-            baseline = baseline,
+        val textPaint = createTextPaint(paint)
+        val textWidth = measureText(
+            paint = textPaint,
             text = text,
-            lineStart = start,
-            spanStart = range.first,
-            spanEnd = range.last + 1
+            start = start,
+            end = end
         )
 
-        configureBackgroundPaint()
+        val rect = buildOutlineRect(
+            textPaint = textPaint,
+            x = x,
+            baseline = y,
+            textWidth = textWidth
+        )
 
+        configureOutlinePaint()
         canvas.drawRoundRect(
             rect,
             span.cornerRadius,
             span.cornerRadius,
-            backgroundPaint
+            outlinePaint
+        )
+
+        if (text == null) return
+
+        canvas.drawText(
+            text,
+            start,
+            end,
+            rect.left + span.paddingHorizontal,
+            y.toFloat(),
+            textPaint
         )
     }
 
-    private fun resolveLineSpanRange(
-        spanned: Spanned,
-        lineStart: Int,
-        lineEnd: Int
-    ): IntRange? {
+    private fun createTextPaint(source: Paint) = TextPaint(source).apply {
 
-        val spanStart = spanned.getSpanStart(this)
-        val spanEnd = spanned.getSpanEnd(this)
-
-        val resolvedStart = spanStart.coerceAtLeast(lineStart)
-        val resolvedEnd = spanEnd.coerceAtMost(lineEnd)
-
-        return if (resolvedStart < resolvedEnd) {
-            resolvedStart until resolvedEnd
-        } else {
-            null
-        }
+        textSize = span.textSize
+        span.textColor?.let { color = it }
     }
 
-    private fun createMeasurePaint(source: Paint) = TextPaint(source).apply {
-        textSize = span.textSize
+    private fun measureText(
+        paint: TextPaint,
+        text: CharSequence?,
+        start: Int,
+        end: Int
+    ): Float {
+
+        return text?.let { paint.measureText(it, start, end) } ?: 0f
+    }
+
+    private fun getHorizontalInsets(): Float {
+
+        return ((span.paddingHorizontal + span.marginHorizontal) * 2f) + getStrokeWidth()
+    }
+
+    private fun updateFontMetrics(
+        paint: TextPaint,
+        fm: Paint.FontMetricsInt?
+    ) {
+
+        fm ?: return
+
+        val fontMetrics = paint.fontMetrics
+        val strokeInset = getStrokeInset()
+
+        fm.ascent = floor(
+            fontMetrics.ascent - span.paddingVertical - span.marginVertical - strokeInset
+        ).toInt()
+        fm.descent = ceil(
+            fontMetrics.descent + span.paddingVertical + span.marginVertical + strokeInset
+        ).toInt()
+        fm.top = fm.ascent
+        fm.bottom = fm.descent
     }
 
     private fun buildOutlineRect(
-        measurePaint: TextPaint,
-        left: Int,
+        textPaint: TextPaint,
+        x: Float,
         baseline: Int,
-        text: CharSequence,
-        lineStart: Int,
-        spanStart: Int,
-        spanEnd: Int
+        textWidth: Float
     ): RectF {
 
-        val textBeforeWidth = measurePaint.measureText(
-            text,
-            lineStart,
-            spanStart
-        )
+        val fontMetrics = textPaint.fontMetrics
+        val strokeInset = getStrokeInset()
 
-        val spanWidth = measurePaint.measureText(
-            text,
-            spanStart,
-            spanEnd
-        )
-
-        val fontMetrics = measurePaint.fontMetrics
-
-        val spanLeft = left +
-                textBeforeWidth +
-                span.marginHorizontal
-
-        val spanRight = spanLeft + spanWidth
-
-        val spanTop = baseline +
-                fontMetrics.ascent -
-                span.paddingVertical
-
-        val spanBottom = baseline +
-                fontMetrics.descent +
-                span.paddingVertical
+        val rectLeft = x + span.marginHorizontal + strokeInset
+        val rectRight = rectLeft + textWidth + (span.paddingHorizontal * 2f)
+        val rectTop = baseline + fontMetrics.ascent - span.paddingVertical
+        val rectBottom = baseline + fontMetrics.descent + span.paddingVertical
 
         rect.set(
-            spanLeft - span.paddingHorizontal,
-            spanTop,
-            spanRight + span.paddingHorizontal,
-            spanBottom
+            rectLeft,
+            rectTop,
+            rectRight,
+            rectBottom
         )
 
         return rect
     }
 
-    private fun configureBackgroundPaint() {
+    private fun getStrokeWidth(): Float {
 
-        backgroundPaint.apply {
+        return span.strokeWidth.coerceAtLeast(0f)
+    }
+
+    private fun getStrokeInset(): Float {
+
+        return getStrokeWidth() / 2f
+    }
+
+    private fun configureOutlinePaint() {
+
+        outlinePaint.apply {
 
             style = Paint.Style.STROKE
 
             color = span.strokeColor
 
-            strokeWidth = span.strokeWidth
+            strokeWidth = getStrokeWidth()
 
             pathEffect = if (
                 span.dashWidth > 0f &&
